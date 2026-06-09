@@ -21,7 +21,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Worker deploy failed.' }
 Write-Host '== 4/4 Build + deploy web app to Cloudflare Pages ==' -ForegroundColor Cyan
 npm run build --workspace=web
 if ($LASTEXITCODE -ne 0) { throw 'Web build failed.' }
-npx wrangler pages deploy web/dist --project-name=lip
+npx wrangler pages deploy web/dist --project-name=3dtsi-lip
 if ($LASTEXITCODE -ne 0) { throw 'Pages deploy failed.' }
 
 Write-Host 'Deployment complete.' -ForegroundColor Green

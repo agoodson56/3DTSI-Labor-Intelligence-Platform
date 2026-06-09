@@ -23,11 +23,16 @@ jobs:
         run: npm run build --workspace=web
 
   deploy:
-    # Deploys on every push to main once tests pass.
-    # Requires repository secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID
+    # Self-provisioning deploy: creates the D1 database, R2 bucket, and Pages
+    # project if they don't exist, patches the database id into wrangler.toml,
+    # applies migrations, deploys the worker + web app, and sets JWT_SECRET.
+    # Required repository secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, JWT_SECRET
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: test
     runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -35,22 +40,36 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+
+      - name: Provision Cloudflare resources (idempotent)
+        run: |
+          npx wrangler d1 create lip-db 2>/dev/null || echo "D1 database lip-db already exists"
+          DB_ID=$(npx wrangler d1 list --json | jq -r '.[] | select(.name=="lip-db") | .uuid')
+          if [ -z "$DB_ID" ]; then echo "Could not resolve lip-db database id"; exit 1; fi
+          echo "lip-db id: $DB_ID"
+          sed -i "s/REPLACE_WITH_D1_DATABASE_ID/$DB_ID/" worker/wrangler.toml
+          npx wrangler r2 bucket create lip-files 2>/dev/null || echo "R2 bucket lip-files already exists"
+          npx wrangler pages project create 3dtsi-lip --production-branch=main 2>/dev/null || echo "Pages project 3dtsi-lip already exists"
+
       - name: Apply D1 migrations
         run: npx wrangler d1 migrations apply lip-db --remote --config worker/wrangler.toml
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
       - name: Deploy API worker
-        run: npx wrangler deploy --config worker/wrangler.toml
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        id: worker
+        run: |
+          OUT=$(npx wrangler deploy --config worker/wrangler.toml)
+          echo "$OUT"
+          URL=$(echo "$OUT" | grep -oE 'https://[a-zA-Z0-9.-]+\.workers\.dev' | head -1)
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Worker URL: $URL"
+
+      - name: Set JWT secret on the worker
+        run: printf '%s' "${{ secrets.JWT_SECRET }}" | npx wrangler secret put JWT_SECRET --config worker/wrangler.toml
+
       - name: Build web app
         run: npm run build --workspace=web
         env:
-          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_API_URL: ${{ vars.VITE_API_URL || steps.worker.outputs.url }}
+
       - name: Deploy to Cloudflare Pages
-        run: npx wrangler pages deploy web/dist --project-name=lip
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler pages deploy web/dist --project-name=3dtsi-lip

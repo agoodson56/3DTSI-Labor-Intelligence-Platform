@@ -61,17 +61,17 @@ npm run dev:web          # vite dev server on :5173 (proxies /api to :8787)
 
 ## First deployment
 
-1. Create Cloudflare resources (one time):
-   ```bash
-   npx wrangler login
-   npx wrangler d1 create lip-db        # paste database_id into worker/wrangler.toml
-   npx wrangler r2 bucket create lip-files
-   npx wrangler pages project create lip
-   npx wrangler secret put JWT_SECRET --config worker/wrangler.toml   # 64+ random chars
-   ```
-2. Update `ALLOWED_ORIGINS` in `worker/wrangler.toml` with your Pages URL, and set the repository variable `VITE_API_URL` to the worker URL (e.g. `https://lip-api.<account>.workers.dev`).
-3. Either run `npm run deploy` locally, or add `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` repo secrets and push to `main` — GitHub Actions tests and deploys automatically.
-4. Open the web app → **First-time setup: create administrator** → sign in → enable MFA → add users, customers, projects.
+The GitHub Actions pipeline is **self-provisioning** — it creates the D1 database, R2 bucket, and Pages project automatically, patches the database id, applies migrations, and sets the worker's JWT secret. One-time setup:
+
+1. Add three repository secrets (GitHub → Settings → Secrets and variables → Actions):
+   - `CLOUDFLARE_API_TOKEN` — custom token with account-level **Workers Scripts: Edit, D1: Edit, Workers R2 Storage: Edit, Cloudflare Pages: Edit** (create at dash.cloudflare.com → My Profile → API Tokens)
+   - `CLOUDFLARE_ACCOUNT_ID` — shown on the Cloudflare dashboard overview / in any zone's right sidebar
+   - `JWT_SECRET` — 64+ random characters (e.g. `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`)
+2. Push to `main` (or re-run the failed workflow). The pipeline tests, provisions, and deploys everything.
+3. Optionally set repository variable `VITE_API_URL` to a custom API URL; otherwise the pipeline auto-detects the workers.dev URL.
+4. Open the web app (`https://3dtsi-lip.pages.dev`) → **First-time setup: create administrator** → sign in → enable MFA → add users, customers, projects.
+
+Manual deployment from a workstation (x64/mac/linux) remains available via `npm run deploy` after `npx wrangler login` — see `scripts/deploy.ps1` header for the one-time resource commands.
 
 ## Backups
 

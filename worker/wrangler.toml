@@ -21,7 +21,7 @@ bucket_name = "lip-files"
 
 [vars]
 # Comma-separated list of allowed web origins (Cloudflare Pages URL + custom domain)
-ALLOWED_ORIGINS = "http://localhost:5173,https://lip.pages.dev"
+ALLOWED_ORIGINS = "http://localhost:5173,https://3dtsi-lip.pages.dev"
 # Access-token lifetime in minutes (session timeout)
 SESSION_TIMEOUT_MINUTES = "480"
 
