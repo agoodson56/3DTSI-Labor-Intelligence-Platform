@@ -41,15 +41,18 @@ jobs:
           cache: npm
       - run: npm ci
 
+      - name: Verify Cloudflare credentials
+        run: npx wrangler whoami
+
       - name: Provision Cloudflare resources (idempotent)
         run: |
-          npx wrangler d1 create lip-db 2>/dev/null || echo "D1 database lip-db already exists"
-          DB_ID=$(npx wrangler d1 list --json | jq -r '.[] | select(.name=="lip-db") | .uuid')
-          if [ -z "$DB_ID" ]; then echo "Could not resolve lip-db database id"; exit 1; fi
+          npx wrangler d1 create lip-db || echo "(d1 create failed - assuming lip-db already exists, see output above)"
+          DB_ID=$(npx wrangler d1 list --json | jq -r '.[] | select(.name=="lip-db") | .uuid') || true
+          if [ -z "$DB_ID" ]; then echo "::error::Could not resolve lip-db database id - check the d1 output above"; exit 1; fi
           echo "lip-db id: $DB_ID"
           sed -i "s/REPLACE_WITH_D1_DATABASE_ID/$DB_ID/" worker/wrangler.toml
-          npx wrangler r2 bucket create lip-files 2>/dev/null || echo "R2 bucket lip-files already exists"
-          npx wrangler pages project create 3dtsi-lip --production-branch=main 2>/dev/null || echo "Pages project 3dtsi-lip already exists"
+          npx wrangler r2 bucket create lip-files || echo "(r2 create failed - assuming lip-files already exists)"
+          npx wrangler pages project create 3dtsi-lip --production-branch=main || echo "(pages create failed - assuming 3dtsi-lip already exists)"
 
       - name: Apply D1 migrations
         run: npx wrangler d1 migrations apply lip-db --remote --config worker/wrangler.toml
