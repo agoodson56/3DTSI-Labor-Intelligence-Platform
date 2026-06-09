@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace=worker",
+    "dev:local": "npm run dev:local --workspace=worker",
     "dev:web": "npm run dev --workspace=web",
     "build": "npm run build --workspace=web",
     "test": "npm run test --workspace=worker",

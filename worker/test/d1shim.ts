@@ -5,7 +5,8 @@
 // @ts-ignore - node:sqlite has no bundled types in this tsconfig
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 class ShimStatement {
   constructor(
@@ -36,11 +37,17 @@ class ShimStatement {
   }
 }
 
-export function createTestDb(): any {
-  const db = new DatabaseSync(':memory:');
-  const migrationsDir = join(__dirname, '..', 'migrations');
+export function createTestDb(path = ':memory:'): any {
+  const db = new DatabaseSync(path);
+  db.exec(`CREATE TABLE IF NOT EXISTS _applied_migrations (name TEXT PRIMARY KEY)`);
+  const applied = new Set(
+    (db.prepare(`SELECT name FROM _applied_migrations`).all() as any[]).map((r) => r.name),
+  );
+  const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'migrations');
   for (const file of readdirSync(migrationsDir).sort()) {
-    if (file.endsWith('.sql')) db.exec(readFileSync(join(migrationsDir, file), 'utf-8'));
+    if (!file.endsWith('.sql') || applied.has(file)) continue;
+    db.exec(readFileSync(join(migrationsDir, file), 'utf-8'));
+    db.prepare(`INSERT INTO _applied_migrations (name) VALUES (?)`).run(file);
   }
 
   return {

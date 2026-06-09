@@ -51,12 +51,13 @@ Technician, Lead Technician, Foreman, Superintendent, Project Manager, Estimator
 
 ```bash
 npm install              # on Windows ARM64 use: npm install --ignore-scripts (workerd has no win-arm64 binary)
-npm test                 # worker unit + security tests
-npm run dev              # wrangler dev (API on :8787) — requires x64/mac/linux for local emulation
+npm test                 # 48 unit + security + integration tests
+npm run dev              # wrangler dev (API on :8787) — requires x64/mac/linux for workerd emulation
+npm run dev:local        # Node-based API on :8787 with a persistent SQLite file (works on ANY machine, incl. Windows ARM64)
 npm run dev:web          # vite dev server on :5173 (proxies /api to :8787)
 ```
 
-> **Windows ARM64 note:** Cloudflare's local runtime (`workerd`) does not ship a Windows ARM64 binary, so `wrangler dev --local` and `--local` D1 migrations don't run on this machine. Tests, builds, type-checks, and *deployments* all work. Use `wrangler dev --remote`, or let GitHub Actions deploy.
+> **Windows ARM64 note:** Cloudflare's local runtime (`workerd`) does not ship a Windows ARM64 binary, so `wrangler dev --local` and `--local` D1 migrations don't run on this machine. Use `npm run dev:local` instead — it runs the real API over a local SQLite file (`worker/.data/lip-local.db`) that emulates D1. Tests, builds, type-checks, and *deployments* all work normally.
 
 ## First deployment
 

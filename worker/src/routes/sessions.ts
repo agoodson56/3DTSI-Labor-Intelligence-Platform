@@ -265,8 +265,21 @@ sessions.get('/active', async (c) => {
 });
 
 sessions.get('/:id', async (c) => {
-  const s: any = await loadSession(c, c.req.param('id'));
-  if (!s || !canTouch(c, s)) return c.json({ error: 'Session not found' }, 404);
+  const base: any = await loadSession(c, c.req.param('id'));
+  if (!base || !canTouch(c, base)) return c.json({ error: 'Session not found' }, 404);
+  const s: any = await c.env.DB.prepare(
+    `SELECT ws.*, p.name AS project_name, p.project_number, sys.name AS system_name,
+            d.name AS device_name, ct.name AS cable_type_name, tt.name AS task_type_name
+     FROM work_sessions ws
+     JOIN projects p ON p.id = ws.project_id
+     LEFT JOIN systems sys ON sys.id = ws.system_id
+     LEFT JOIN devices d ON d.id = ws.device_id
+     LEFT JOIN cable_types ct ON ct.id = ws.cable_type_id
+     JOIN task_types tt ON tt.id = ws.task_type_id
+     WHERE ws.id = ?`,
+  )
+    .bind(base.id)
+    .first();
   const [events, reels, techs] = await Promise.all([
     c.env.DB.prepare(`SELECT event, at FROM session_events WHERE session_id = ? ORDER BY id`).bind(s.id).all(),
     c.env.DB.prepare(`SELECT * FROM cable_reels WHERE session_id = ? ORDER BY reel_number`).bind(s.id).all(),
