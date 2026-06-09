@@ -42,7 +42,16 @@ jobs:
       - run: npm ci
 
       - name: Verify Cloudflare credentials
-        run: npx wrangler whoami
+        run: |
+          echo "Verifying API token against Cloudflare..."
+          RESP=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" https://api.cloudflare.com/client/v4/user/tokens/verify)
+          echo "$RESP"
+          echo "$RESP" | jq -e '.success == true' >/dev/null || { echo "::error::API token is invalid or expired - recreate it and update the CLOUDFLARE_API_TOKEN secret"; exit 1; }
+          echo "Token is valid. Checking account access..."
+          ACCT=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database")
+          echo "$ACCT" | jq '{success, errors}'
+          echo "$ACCT" | jq -e '.success == true' >/dev/null || { echo "::error::Token cannot access D1 on this account - check the token permissions (D1: Edit) and that CLOUDFLARE_ACCOUNT_ID matches the account the token is scoped to"; exit 1; }
+          echo "Credentials OK."
 
       - name: Provision Cloudflare resources (idempotent)
         run: |
