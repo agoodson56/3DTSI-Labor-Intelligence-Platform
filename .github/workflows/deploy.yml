@@ -64,7 +64,12 @@ jobs:
           npx wrangler pages project create 3dtsi-lip --production-branch=main || echo "(pages create failed - assuming 3dtsi-lip already exists)"
 
       - name: Apply D1 migrations
-        run: npx wrangler d1 migrations apply lip-db --remote --config worker/wrangler.toml
+        run: |
+          set -o pipefail
+          npx wrangler d1 migrations apply lip-db --remote --config worker/wrangler.toml 2>&1 | tee mig.log || {
+            echo "::error::D1 migration failed: $(tail -c 600 mig.log | tr '\n' ' ')"
+            exit 1
+          }
 
       - name: Deploy API worker
         id: worker
