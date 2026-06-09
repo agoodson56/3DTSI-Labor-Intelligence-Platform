@@ -2,6 +2,17 @@
 
 All notable changes to the 3DTSI Labor Intelligence Platform.
 
+## [1.2.0] - 2026-06-09
+
+### Added
+- **Excel bulk project import**: downloadable template (`Instructions` / `Projects` / `Reference` sheets, dropdown validation for market segment and project type) and an Admin → Projects "Import from Excel" uploader. The importer auto-creates missing customers, skips existing project numbers, matches PM emails to users, attaches per-project system scope, and reports a per-row result (created / skipped / error).
+- Project system scoping (migration 0004): projects can declare which systems are in scope; the field tracking UI then only offers those systems.
+- Template generator script: `node scripts/generate-import-template.mjs`.
+
+### Fixed
+- Migration 0003 rewritten with multi-row VALUES instead of UNION ALL chains - Cloudflare D1 enforces a low compound-SELECT term limit that failed the original migration in production.
+- Excel parsing loads on demand so the field PWA bundle stays small.
+
 ## [1.1.0] - 2026-06-09
 
 ### Added

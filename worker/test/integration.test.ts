@@ -319,6 +319,65 @@ describe('API integration', () => {
     expect((await call('GET', '/api/auth/me', undefined, t)).status).toBe(401);
   });
 
+  it('bulk imports projects from spreadsheet rows', async () => {
+    const res = await call(
+      'POST',
+      '/api/projects/import',
+      {
+        rows: [
+          {
+            projectNumber: 'P-2026-201',
+            name: 'Imported Fire Alarm Job',
+            customer: 'New Import Customer',
+            marketSegment: 'Education',
+            projectType: 'Installation',
+            officeLocation: 'Dallas',
+            laborBudgetHours: 100,
+            systems: 'Fire Alarm, Access Control',
+          },
+          { projectNumber: 'P-2026-001', name: 'Duplicate', customer: 'Metro General Hospital' },
+          { projectNumber: '', name: 'Missing fields', customer: '' },
+          {
+            projectNumber: 'P-2026-202',
+            name: 'Imported Camera Job',
+            customer: 'Metro General Hospital',
+            systems: 'Bogus System, CCTV / Video Surveillance',
+            pmEmail: 'admin@3dtsi.com',
+          },
+        ],
+      },
+      adminToken,
+    );
+    expect(res.status).toBe(200);
+    expect(res.data.created).toBe(2);
+    expect(res.data.skipped).toBe(1);
+    expect(res.data.errors).toBe(1);
+
+    const first = res.data.results.find((r: any) => r.projectNumber === 'P-2026-201');
+    expect(first.status).toBe('created');
+    expect(first.systems).toBe(2);
+    expect(first.qrToken).toBeTruthy();
+
+    const second = res.data.results.find((r: any) => r.projectNumber === 'P-2026-202');
+    expect(second.message).toContain('unknown systems ignored: Bogus System');
+
+    // imported customer was auto-created
+    const customers = await call('GET', '/api/projects/customers/list', undefined, adminToken);
+    expect(customers.data.some((c: any) => c.name === 'New Import Customer')).toBe(true);
+
+    // project detail exposes its systems scope
+    const list = await call('GET', '/api/projects?q=P-2026-201', undefined, adminToken);
+    const detail = await call('GET', `/api/projects/${list.data[0].id}`, undefined, adminToken);
+    expect(detail.data.systems.map((s: any) => s.name).sort()).toEqual(['Access Control', 'Fire Alarm']);
+
+    // technicians cannot import
+    expect((await call('POST', '/api/projects/import', { rows: [{}] }, techToken)).status).toBe(403);
+
+    // re-import of the same file is fully idempotent
+    const again = await call('POST', '/api/projects/import', { rows: [{ projectNumber: 'P-2026-201', name: 'X', customer: 'Y' }] }, adminToken);
+    expect(again.data.skipped).toBe(1);
+  });
+
   it('rejects requests without a token', async () => {
     expect((await call('GET', '/api/projects')).status).toBe(401);
     expect((await call('GET', '/api/sessions')).status).toBe(401);

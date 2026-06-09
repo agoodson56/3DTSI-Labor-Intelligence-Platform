@@ -2,6 +2,8 @@
 -- Strategy: rename 1:1 matches to preserve recorded labor history, deactivate
 -- superseded generics, add new systems and devices. estimate_hours_per_unit
 -- values are starting points - tune them in Admin -> Catalog.
+-- Note: uses multi-row VALUES (not UNION ALL chains) - D1 limits compound
+-- SELECT terms. Every statement is idempotent so partial applies retry safely.
 
 -- ============ SYSTEMS ============
 UPDATE systems SET name = 'Fiber Optic Systems'       WHERE name = 'Fiber Optics';
@@ -32,45 +34,44 @@ UPDATE devices SET name = 'Faceplate'   WHERE name = 'Faceplates' AND system_id 
 UPDATE devices SET name = 'Rack'        WHERE name = 'Racks'      AND system_id = (SELECT id FROM systems WHERE name='Structured Cabling');
 UPDATE devices SET name = 'Cabinet'     WHERE name = 'Cabinets'   AND system_id = (SELECT id FROM systems WHERE name='Structured Cabling');
 UPDATE devices SET name = 'Patch Panel' WHERE name = 'Patch Panels' AND system_id = (SELECT id FROM systems WHERE name='Structured Cabling');
--- superseded by Fiber Optic Systems strand-count cables
 UPDATE devices SET active = 0 WHERE name = 'Fiber' AND system_id = (SELECT id FROM systems WHERE name='Structured Cabling');
 
-INSERT OR IGNORE INTO devices (system_id, name, unit, estimate_hours_per_unit)
-SELECT id, 'Shielded Cat6A Cable', 'feet', 0.014 FROM systems WHERE name='Structured Cabling' UNION ALL
-SELECT id, 'Plenum Cable',         'feet', 0.012 FROM systems WHERE name='Structured Cabling' UNION ALL
-SELECT id, 'Non-Plenum Cable',     'feet', 0.010 FROM systems WHERE name='Structured Cabling' UNION ALL
-SELECT id, 'RJ45 Jack',            'each', 0.15  FROM systems WHERE name='Structured Cabling' UNION ALL
-SELECT id, 'Surface Mount Box',    'each', 0.25  FROM systems WHERE name='Structured Cabling' UNION ALL
-SELECT id, 'Biscuit Jack',         'each', 0.20  FROM systems WHERE name='Structured Cabling' UNION ALL
-SELECT id, 'Patch Panel Port',     'each', 0.10  FROM systems WHERE name='Structured Cabling' UNION ALL
-SELECT id, 'J-Hook',               'each', 0.08  FROM systems WHERE name='Structured Cabling' UNION ALL
-SELECT id, 'Cable Tray',           'feet', 0.06  FROM systems WHERE name='Structured Cabling' UNION ALL
-SELECT id, 'Conduit',              'feet', 0.08  FROM systems WHERE name='Structured Cabling' UNION ALL
-SELECT id, 'Innerduct',            'feet', 0.03  FROM systems WHERE name='Structured Cabling' UNION ALL
-SELECT id, 'Raceway',              'feet', 0.06  FROM systems WHERE name='Structured Cabling' UNION ALL
-SELECT id, 'Ladder Rack',          'feet', 0.10  FROM systems WHERE name='Structured Cabling' UNION ALL
-SELECT id, 'Vertical Wire Manager','each', 0.50  FROM systems WHERE name='Structured Cabling' UNION ALL
-SELECT id, 'Horizontal Wire Manager','each', 0.30 FROM systems WHERE name='Structured Cabling';
+INSERT OR IGNORE INTO devices (system_id, name, unit, estimate_hours_per_unit) VALUES
+((SELECT id FROM systems WHERE name='Structured Cabling'), 'Shielded Cat6A Cable',    'feet', 0.014),
+((SELECT id FROM systems WHERE name='Structured Cabling'), 'Plenum Cable',            'feet', 0.012),
+((SELECT id FROM systems WHERE name='Structured Cabling'), 'Non-Plenum Cable',        'feet', 0.010),
+((SELECT id FROM systems WHERE name='Structured Cabling'), 'RJ45 Jack',               'each', 0.15),
+((SELECT id FROM systems WHERE name='Structured Cabling'), 'Surface Mount Box',       'each', 0.25),
+((SELECT id FROM systems WHERE name='Structured Cabling'), 'Biscuit Jack',            'each', 0.20),
+((SELECT id FROM systems WHERE name='Structured Cabling'), 'Patch Panel Port',        'each', 0.10),
+((SELECT id FROM systems WHERE name='Structured Cabling'), 'J-Hook',                  'each', 0.08),
+((SELECT id FROM systems WHERE name='Structured Cabling'), 'Cable Tray',              'feet', 0.06),
+((SELECT id FROM systems WHERE name='Structured Cabling'), 'Conduit',                 'feet', 0.08),
+((SELECT id FROM systems WHERE name='Structured Cabling'), 'Innerduct',               'feet', 0.03),
+((SELECT id FROM systems WHERE name='Structured Cabling'), 'Raceway',                 'feet', 0.06),
+((SELECT id FROM systems WHERE name='Structured Cabling'), 'Ladder Rack',             'feet', 0.10),
+((SELECT id FROM systems WHERE name='Structured Cabling'), 'Vertical Wire Manager',   'each', 0.50),
+((SELECT id FROM systems WHERE name='Structured Cabling'), 'Horizontal Wire Manager', 'each', 0.30);
 
 -- ============ FIBER OPTIC SYSTEMS ============
 UPDATE devices SET name = 'Fiber Enclosure'   WHERE name = 'Splice Enclosures' AND system_id = (SELECT id FROM systems WHERE name='Fiber Optic Systems');
 UPDATE devices SET name = 'Fiber Patch Panel' WHERE name = 'Fiber Panels'      AND system_id = (SELECT id FROM systems WHERE name='Fiber Optic Systems');
 
-INSERT OR IGNORE INTO devices (system_id, name, unit, estimate_hours_per_unit)
-SELECT id, '6 Strand Fiber',    'feet', 0.010 FROM systems WHERE name='Fiber Optic Systems' UNION ALL
-SELECT id, '12 Strand Fiber',   'feet', 0.011 FROM systems WHERE name='Fiber Optic Systems' UNION ALL
-SELECT id, '24 Strand Fiber',   'feet', 0.012 FROM systems WHERE name='Fiber Optic Systems' UNION ALL
-SELECT id, '48 Strand Fiber',   'feet', 0.014 FROM systems WHERE name='Fiber Optic Systems' UNION ALL
-SELECT id, '96 Strand Fiber',   'feet', 0.016 FROM systems WHERE name='Fiber Optic Systems' UNION ALL
-SELECT id, '144 Strand Fiber',  'feet', 0.018 FROM systems WHERE name='Fiber Optic Systems' UNION ALL
-SELECT id, 'LC Connector',      'each', 0.25  FROM systems WHERE name='Fiber Optic Systems' UNION ALL
-SELECT id, 'SC Connector',      'each', 0.25  FROM systems WHERE name='Fiber Optic Systems' UNION ALL
-SELECT id, 'ST Connector',      'each', 0.25  FROM systems WHERE name='Fiber Optic Systems' UNION ALL
-SELECT id, 'Fiber Shelf',       'each', 1.00  FROM systems WHERE name='Fiber Optic Systems' UNION ALL
-SELECT id, 'Fiber Cassette',    'each', 0.50  FROM systems WHERE name='Fiber Optic Systems' UNION ALL
-SELECT id, 'Media Converter',   'each', 0.75  FROM systems WHERE name='Fiber Optic Systems' UNION ALL
-SELECT id, 'Fiber Transceiver', 'each', 0.25  FROM systems WHERE name='Fiber Optic Systems' UNION ALL
-SELECT id, 'Fiber Splice Tray', 'each', 1.00  FROM systems WHERE name='Fiber Optic Systems';
+INSERT OR IGNORE INTO devices (system_id, name, unit, estimate_hours_per_unit) VALUES
+((SELECT id FROM systems WHERE name='Fiber Optic Systems'), '6 Strand Fiber',    'feet', 0.010),
+((SELECT id FROM systems WHERE name='Fiber Optic Systems'), '12 Strand Fiber',   'feet', 0.011),
+((SELECT id FROM systems WHERE name='Fiber Optic Systems'), '24 Strand Fiber',   'feet', 0.012),
+((SELECT id FROM systems WHERE name='Fiber Optic Systems'), '48 Strand Fiber',   'feet', 0.014),
+((SELECT id FROM systems WHERE name='Fiber Optic Systems'), '96 Strand Fiber',   'feet', 0.016),
+((SELECT id FROM systems WHERE name='Fiber Optic Systems'), '144 Strand Fiber',  'feet', 0.018),
+((SELECT id FROM systems WHERE name='Fiber Optic Systems'), 'LC Connector',      'each', 0.25),
+((SELECT id FROM systems WHERE name='Fiber Optic Systems'), 'SC Connector',      'each', 0.25),
+((SELECT id FROM systems WHERE name='Fiber Optic Systems'), 'ST Connector',      'each', 0.25),
+((SELECT id FROM systems WHERE name='Fiber Optic Systems'), 'Fiber Shelf',       'each', 1.00),
+((SELECT id FROM systems WHERE name='Fiber Optic Systems'), 'Fiber Cassette',    'each', 0.50),
+((SELECT id FROM systems WHERE name='Fiber Optic Systems'), 'Media Converter',   'each', 0.75),
+((SELECT id FROM systems WHERE name='Fiber Optic Systems'), 'Fiber Transceiver', 'each', 0.25),
+((SELECT id FROM systems WHERE name='Fiber Optic Systems'), 'Fiber Splice Tray', 'each', 1.00);
 
 -- ============ ACCESS CONTROL ============
 UPDATE devices SET name = 'Card Reader'           WHERE name = 'Card Readers'     AND system_id = (SELECT id FROM systems WHERE name='Access Control');
@@ -79,108 +80,104 @@ UPDATE devices SET name = 'Electric Strike'       WHERE name = 'Electric Strikes
 UPDATE devices SET name = 'Door Contact'          WHERE name = 'Door Contacts'    AND system_id = (SELECT id FROM systems WHERE name='Access Control');
 UPDATE devices SET name = 'Request To Exit (REX)' WHERE name = 'REX Devices'      AND system_id = (SELECT id FROM systems WHERE name='Access Control');
 UPDATE devices SET name = 'Power Supply'          WHERE name = 'Power Supplies'   AND system_id = (SELECT id FROM systems WHERE name='Access Control');
--- superseded: generic panels -> door controllers; motion sensors -> Motion REX / Intrusion
 UPDATE devices SET active = 0 WHERE name IN ('Panels', 'Motion Sensors') AND system_id = (SELECT id FROM systems WHERE name='Access Control');
 
-INSERT OR IGNORE INTO devices (system_id, name, unit, estimate_hours_per_unit)
-SELECT id, 'Keypad Reader',              'each', 2.50 FROM systems WHERE name='Access Control' UNION ALL
-SELECT id, 'Mullion Reader',             'each', 2.80 FROM systems WHERE name='Access Control' UNION ALL
-SELECT id, 'Biometric Reader',           'each', 3.50 FROM systems WHERE name='Access Control' UNION ALL
-SELECT id, 'Electrified Lever Set',      'each', 4.00 FROM systems WHERE name='Access Control' UNION ALL
-SELECT id, 'Electrified Panic Hardware', 'each', 5.00 FROM systems WHERE name='Access Control' UNION ALL
-SELECT id, 'Door Operator',              'each', 6.00 FROM systems WHERE name='Access Control' UNION ALL
-SELECT id, 'Motion REX',                 'each', 1.25 FROM systems WHERE name='Access Control' UNION ALL
-SELECT id, 'Push Button REX',            'each', 1.00 FROM systems WHERE name='Access Control' UNION ALL
-SELECT id, 'Single Door Controller',     'each', 4.00 FROM systems WHERE name='Access Control' UNION ALL
-SELECT id, 'Two Door Controller',        'each', 5.00 FROM systems WHERE name='Access Control' UNION ALL
-SELECT id, 'Four Door Controller',       'each', 6.00 FROM systems WHERE name='Access Control' UNION ALL
-SELECT id, 'Intelligent Controller',     'each', 8.00 FROM systems WHERE name='Access Control' UNION ALL
-SELECT id, 'Card',                       'each', 0.02 FROM systems WHERE name='Access Control' UNION ALL
-SELECT id, 'Fob',                        'each', 0.02 FROM systems WHERE name='Access Control' UNION ALL
-SELECT id, 'Mobile Credential',          'each', 0.05 FROM systems WHERE name='Access Control';
+INSERT OR IGNORE INTO devices (system_id, name, unit, estimate_hours_per_unit) VALUES
+((SELECT id FROM systems WHERE name='Access Control'), 'Keypad Reader',              'each', 2.50),
+((SELECT id FROM systems WHERE name='Access Control'), 'Mullion Reader',             'each', 2.80),
+((SELECT id FROM systems WHERE name='Access Control'), 'Biometric Reader',           'each', 3.50),
+((SELECT id FROM systems WHERE name='Access Control'), 'Electrified Lever Set',      'each', 4.00),
+((SELECT id FROM systems WHERE name='Access Control'), 'Electrified Panic Hardware', 'each', 5.00),
+((SELECT id FROM systems WHERE name='Access Control'), 'Door Operator',              'each', 6.00),
+((SELECT id FROM systems WHERE name='Access Control'), 'Motion REX',                 'each', 1.25),
+((SELECT id FROM systems WHERE name='Access Control'), 'Push Button REX',            'each', 1.00),
+((SELECT id FROM systems WHERE name='Access Control'), 'Single Door Controller',     'each', 4.00),
+((SELECT id FROM systems WHERE name='Access Control'), 'Two Door Controller',        'each', 5.00),
+((SELECT id FROM systems WHERE name='Access Control'), 'Four Door Controller',       'each', 6.00),
+((SELECT id FROM systems WHERE name='Access Control'), 'Intelligent Controller',     'each', 8.00),
+((SELECT id FROM systems WHERE name='Access Control'), 'Card',                       'each', 0.02),
+((SELECT id FROM systems WHERE name='Access Control'), 'Fob',                        'each', 0.02),
+((SELECT id FROM systems WHERE name='Access Control'), 'Mobile Credential',          'each', 0.05);
 
 -- ============ CCTV / VIDEO SURVEILLANCE ============
 UPDATE devices SET name = 'PTZ Camera'          WHERE name = 'PTZ Cameras'          AND system_id = (SELECT id FROM systems WHERE name='CCTV / Video Surveillance');
 UPDATE devices SET name = 'Multi-Sensor Camera' WHERE name = 'Multi-Sensor Cameras' AND system_id = (SELECT id FROM systems WHERE name='CCTV / Video Surveillance');
 UPDATE devices SET name = 'Video Server'        WHERE name = 'Servers'              AND system_id = (SELECT id FROM systems WHERE name='CCTV / Video Surveillance');
 UPDATE devices SET name = 'Monitor'             WHERE name = 'Monitors'             AND system_id = (SELECT id FROM systems WHERE name='CCTV / Video Surveillance');
--- superseded: split into dome/bullet, mounts, and AV video walls
 UPDATE devices SET active = 0 WHERE name IN ('Fixed Cameras', 'Pole Cameras', 'Video Walls', 'Analytics Devices') AND system_id = (SELECT id FROM systems WHERE name='CCTV / Video Surveillance');
 
-INSERT OR IGNORE INTO devices (system_id, name, unit, estimate_hours_per_unit)
-SELECT id, 'Fixed Dome Camera',   'each', 1.75 FROM systems WHERE name='CCTV / Video Surveillance' UNION ALL
-SELECT id, 'Fixed Bullet Camera', 'each', 1.75 FROM systems WHERE name='CCTV / Video Surveillance' UNION ALL
-SELECT id, 'Fisheye Camera',      'each', 2.00 FROM systems WHERE name='CCTV / Video Surveillance' UNION ALL
-SELECT id, 'Thermal Camera',      'each', 2.50 FROM systems WHERE name='CCTV / Video Surveillance' UNION ALL
-SELECT id, 'LPR Camera',          'each', 3.00 FROM systems WHERE name='CCTV / Video Surveillance' UNION ALL
-SELECT id, 'DVR',                 'each', 3.00 FROM systems WHERE name='CCTV / Video Surveillance' UNION ALL
-SELECT id, 'Storage Array',       'each', 4.00 FROM systems WHERE name='CCTV / Video Surveillance' UNION ALL
-SELECT id, 'Camera Mount',        'each', 0.50 FROM systems WHERE name='CCTV / Video Surveillance' UNION ALL
-SELECT id, 'Pole Mount',          'each', 2.00 FROM systems WHERE name='CCTV / Video Surveillance' UNION ALL
-SELECT id, 'Corner Mount',        'each', 1.00 FROM systems WHERE name='CCTV / Video Surveillance' UNION ALL
-SELECT id, 'Housing',             'each', 0.75 FROM systems WHERE name='CCTV / Video Surveillance' UNION ALL
-SELECT id, 'Heater Blower Kit',   'each', 0.75 FROM systems WHERE name='CCTV / Video Surveillance';
+INSERT OR IGNORE INTO devices (system_id, name, unit, estimate_hours_per_unit) VALUES
+((SELECT id FROM systems WHERE name='CCTV / Video Surveillance'), 'Fixed Dome Camera',   'each', 1.75),
+((SELECT id FROM systems WHERE name='CCTV / Video Surveillance'), 'Fixed Bullet Camera', 'each', 1.75),
+((SELECT id FROM systems WHERE name='CCTV / Video Surveillance'), 'Fisheye Camera',      'each', 2.00),
+((SELECT id FROM systems WHERE name='CCTV / Video Surveillance'), 'Thermal Camera',      'each', 2.50),
+((SELECT id FROM systems WHERE name='CCTV / Video Surveillance'), 'LPR Camera',          'each', 3.00),
+((SELECT id FROM systems WHERE name='CCTV / Video Surveillance'), 'DVR',                 'each', 3.00),
+((SELECT id FROM systems WHERE name='CCTV / Video Surveillance'), 'Storage Array',       'each', 4.00),
+((SELECT id FROM systems WHERE name='CCTV / Video Surveillance'), 'Camera Mount',        'each', 0.50),
+((SELECT id FROM systems WHERE name='CCTV / Video Surveillance'), 'Pole Mount',          'each', 2.00),
+((SELECT id FROM systems WHERE name='CCTV / Video Surveillance'), 'Corner Mount',        'each', 1.00),
+((SELECT id FROM systems WHERE name='CCTV / Video Surveillance'), 'Housing',             'each', 0.75),
+((SELECT id FROM systems WHERE name='CCTV / Video Surveillance'), 'Heater Blower Kit',   'each', 0.75);
 
 -- ============ INTRUSION DETECTION (new) ============
-INSERT OR IGNORE INTO devices (system_id, name, unit, estimate_hours_per_unit)
-SELECT id, 'Door Contact',           'each', 0.75 FROM systems WHERE name='Intrusion Detection' UNION ALL
-SELECT id, 'Window Contact',         'each', 0.75 FROM systems WHERE name='Intrusion Detection' UNION ALL
-SELECT id, 'Glass Break Detector',   'each', 1.00 FROM systems WHERE name='Intrusion Detection' UNION ALL
-SELECT id, 'Motion Detector',        'each', 1.00 FROM systems WHERE name='Intrusion Detection' UNION ALL
-SELECT id, 'Dual Technology Motion', 'each', 1.00 FROM systems WHERE name='Intrusion Detection' UNION ALL
-SELECT id, 'Beam Detector',          'each', 3.00 FROM systems WHERE name='Intrusion Detection' UNION ALL
-SELECT id, 'Panic Button',           'each', 0.75 FROM systems WHERE name='Intrusion Detection' UNION ALL
-SELECT id, 'Intrusion Panel',        'each', 4.00 FROM systems WHERE name='Intrusion Detection' UNION ALL
-SELECT id, 'Keypad',                 'each', 1.00 FROM systems WHERE name='Intrusion Detection' UNION ALL
-SELECT id, 'Expansion Module',       'each', 1.00 FROM systems WHERE name='Intrusion Detection' UNION ALL
-SELECT id, 'Communicator',           'each', 1.50 FROM systems WHERE name='Intrusion Detection' UNION ALL
-SELECT id, 'Siren',                  'each', 1.00 FROM systems WHERE name='Intrusion Detection' UNION ALL
-SELECT id, 'Strobe',                 'each', 1.00 FROM systems WHERE name='Intrusion Detection' UNION ALL
-SELECT id, 'Sounder',                'each', 1.00 FROM systems WHERE name='Intrusion Detection';
+INSERT OR IGNORE INTO devices (system_id, name, unit, estimate_hours_per_unit) VALUES
+((SELECT id FROM systems WHERE name='Intrusion Detection'), 'Door Contact',           'each', 0.75),
+((SELECT id FROM systems WHERE name='Intrusion Detection'), 'Window Contact',         'each', 0.75),
+((SELECT id FROM systems WHERE name='Intrusion Detection'), 'Glass Break Detector',   'each', 1.00),
+((SELECT id FROM systems WHERE name='Intrusion Detection'), 'Motion Detector',        'each', 1.00),
+((SELECT id FROM systems WHERE name='Intrusion Detection'), 'Dual Technology Motion', 'each', 1.00),
+((SELECT id FROM systems WHERE name='Intrusion Detection'), 'Beam Detector',          'each', 3.00),
+((SELECT id FROM systems WHERE name='Intrusion Detection'), 'Panic Button',           'each', 0.75),
+((SELECT id FROM systems WHERE name='Intrusion Detection'), 'Intrusion Panel',        'each', 4.00),
+((SELECT id FROM systems WHERE name='Intrusion Detection'), 'Keypad',                 'each', 1.00),
+((SELECT id FROM systems WHERE name='Intrusion Detection'), 'Expansion Module',       'each', 1.00),
+((SELECT id FROM systems WHERE name='Intrusion Detection'), 'Communicator',           'each', 1.50),
+((SELECT id FROM systems WHERE name='Intrusion Detection'), 'Siren',                  'each', 1.00),
+((SELECT id FROM systems WHERE name='Intrusion Detection'), 'Strobe',                 'each', 1.00),
+((SELECT id FROM systems WHERE name='Intrusion Detection'), 'Sounder',                'each', 1.00);
 
 -- ============ NETWORKING ============
 UPDATE devices SET name = 'Router'             WHERE name = 'Routers'             AND system_id = (SELECT id FROM systems WHERE name='Networking');
 UPDATE devices SET name = 'Firewall'           WHERE name = 'Firewalls'           AND system_id = (SELECT id FROM systems WHERE name='Networking');
 UPDATE devices SET name = 'Network Controller' WHERE name = 'Network Controllers' AND system_id = (SELECT id FROM systems WHERE name='Networking');
--- superseded: split by switch class and AP location
 UPDATE devices SET active = 0 WHERE name IN ('Switches', 'Wireless Access Points') AND system_id = (SELECT id FROM systems WHERE name='Networking');
 
-INSERT OR IGNORE INTO devices (system_id, name, unit, estimate_hours_per_unit)
-SELECT id, 'Layer 2 Switch',       'each', 2.00 FROM systems WHERE name='Networking' UNION ALL
-SELECT id, 'Layer 3 Switch',       'each', 2.50 FROM systems WHERE name='Networking' UNION ALL
-SELECT id, 'PoE Switch',           'each', 2.00 FROM systems WHERE name='Networking' UNION ALL
-SELECT id, 'Industrial Switch',    'each', 2.50 FROM systems WHERE name='Networking' UNION ALL
-SELECT id, 'Indoor Access Point',  'each', 1.50 FROM systems WHERE name='Networking' UNION ALL
-SELECT id, 'Outdoor Access Point', 'each', 3.00 FROM systems WHERE name='Networking' UNION ALL
-SELECT id, 'Wireless Bridge',      'each', 3.00 FROM systems WHERE name='Networking' UNION ALL
-SELECT id, 'Antenna',              'each', 1.50 FROM systems WHERE name='Networking' UNION ALL
-SELECT id, 'VPN Appliance',        'each', 3.00 FROM systems WHERE name='Networking' UNION ALL
-SELECT id, 'UPS',                  'each', 2.00 FROM systems WHERE name='Networking' UNION ALL
-SELECT id, 'PDU',                  'each', 1.00 FROM systems WHERE name='Networking' UNION ALL
-SELECT id, 'Network Rack',         'each', 3.00 FROM systems WHERE name='Networking' UNION ALL
-SELECT id, 'Network Cabinet',      'each', 4.00 FROM systems WHERE name='Networking';
+INSERT OR IGNORE INTO devices (system_id, name, unit, estimate_hours_per_unit) VALUES
+((SELECT id FROM systems WHERE name='Networking'), 'Layer 2 Switch',       'each', 2.00),
+((SELECT id FROM systems WHERE name='Networking'), 'Layer 3 Switch',       'each', 2.50),
+((SELECT id FROM systems WHERE name='Networking'), 'PoE Switch',           'each', 2.00),
+((SELECT id FROM systems WHERE name='Networking'), 'Industrial Switch',    'each', 2.50),
+((SELECT id FROM systems WHERE name='Networking'), 'Indoor Access Point',  'each', 1.50),
+((SELECT id FROM systems WHERE name='Networking'), 'Outdoor Access Point', 'each', 3.00),
+((SELECT id FROM systems WHERE name='Networking'), 'Wireless Bridge',      'each', 3.00),
+((SELECT id FROM systems WHERE name='Networking'), 'Antenna',              'each', 1.50),
+((SELECT id FROM systems WHERE name='Networking'), 'VPN Appliance',        'each', 3.00),
+((SELECT id FROM systems WHERE name='Networking'), 'UPS',                  'each', 2.00),
+((SELECT id FROM systems WHERE name='Networking'), 'PDU',                  'each', 1.00),
+((SELECT id FROM systems WHERE name='Networking'), 'Network Rack',         'each', 3.00),
+((SELECT id FROM systems WHERE name='Networking'), 'Network Cabinet',      'each', 4.00);
 
 -- ============ AUDIO VISUAL ============
-UPDATE devices SET name = 'Projector'      WHERE name = 'Projectors'     AND system_id = (SELECT id FROM systems WHERE name='Audio Visual');
-UPDATE devices SET name = 'DSP Processor'  WHERE name = 'DSP Equipment'  AND system_id = (SELECT id FROM systems WHERE name='Audio Visual');
+UPDATE devices SET name = 'Projector'      WHERE name = 'Projectors'      AND system_id = (SELECT id FROM systems WHERE name='Audio Visual');
+UPDATE devices SET name = 'DSP Processor'  WHERE name = 'DSP Equipment'   AND system_id = (SELECT id FROM systems WHERE name='Audio Visual');
 UPDATE devices SET name = 'Control System' WHERE name = 'Control Systems' AND system_id = (SELECT id FROM systems WHERE name='Audio Visual');
--- superseded: split by display/speaker type
 UPDATE devices SET active = 0 WHERE name IN ('Displays', 'Speakers') AND system_id = (SELECT id FROM systems WHERE name='Audio Visual');
 
-INSERT OR IGNORE INTO devices (system_id, name, unit, estimate_hours_per_unit)
-SELECT id, 'LCD Display',         'each', 2.50 FROM systems WHERE name='Audio Visual' UNION ALL
-SELECT id, 'LED Display',         'each', 3.00 FROM systems WHERE name='Audio Visual' UNION ALL
-SELECT id, 'Video Wall Display',  'each', 4.00 FROM systems WHERE name='Audio Visual' UNION ALL
-SELECT id, 'Interactive Display', 'each', 3.00 FROM systems WHERE name='Audio Visual' UNION ALL
-SELECT id, 'Projection Screen',   'each', 2.00 FROM systems WHERE name='Audio Visual' UNION ALL
-SELECT id, 'Ceiling Speaker',     'each', 0.75 FROM systems WHERE name='Audio Visual' UNION ALL
-SELECT id, 'Surface Speaker',     'each', 0.75 FROM systems WHERE name='Audio Visual' UNION ALL
-SELECT id, 'Pendant Speaker',     'each', 1.00 FROM systems WHERE name='Audio Visual' UNION ALL
-SELECT id, 'Amplifier',           'each', 1.50 FROM systems WHERE name='Audio Visual' UNION ALL
-SELECT id, 'Conference Camera',   'each', 1.50 FROM systems WHERE name='Audio Visual' UNION ALL
-SELECT id, 'Microphone',          'each', 1.00 FROM systems WHERE name='Audio Visual' UNION ALL
-SELECT id, 'Touch Panel',         'each', 1.50 FROM systems WHERE name='Audio Visual' UNION ALL
-SELECT id, 'Codec',               'each', 2.00 FROM systems WHERE name='Audio Visual';
+INSERT OR IGNORE INTO devices (system_id, name, unit, estimate_hours_per_unit) VALUES
+((SELECT id FROM systems WHERE name='Audio Visual'), 'LCD Display',         'each', 2.50),
+((SELECT id FROM systems WHERE name='Audio Visual'), 'LED Display',         'each', 3.00),
+((SELECT id FROM systems WHERE name='Audio Visual'), 'Video Wall Display',  'each', 4.00),
+((SELECT id FROM systems WHERE name='Audio Visual'), 'Interactive Display', 'each', 3.00),
+((SELECT id FROM systems WHERE name='Audio Visual'), 'Projection Screen',   'each', 2.00),
+((SELECT id FROM systems WHERE name='Audio Visual'), 'Ceiling Speaker',     'each', 0.75),
+((SELECT id FROM systems WHERE name='Audio Visual'), 'Surface Speaker',     'each', 0.75),
+((SELECT id FROM systems WHERE name='Audio Visual'), 'Pendant Speaker',     'each', 1.00),
+((SELECT id FROM systems WHERE name='Audio Visual'), 'Amplifier',           'each', 1.50),
+((SELECT id FROM systems WHERE name='Audio Visual'), 'Conference Camera',   'each', 1.50),
+((SELECT id FROM systems WHERE name='Audio Visual'), 'Microphone',          'each', 1.00),
+((SELECT id FROM systems WHERE name='Audio Visual'), 'Touch Panel',         'each', 1.50),
+((SELECT id FROM systems WHERE name='Audio Visual'), 'Codec',               'each', 2.00);
 
 -- ============ FIRE ALARM ============
 UPDATE devices SET name = 'Smoke Detector'      WHERE name = 'Smoke Detectors'    AND system_id = (SELECT id FROM systems WHERE name='Fire Alarm');
@@ -199,42 +196,42 @@ UPDATE devices SET name = 'Annunciator'         WHERE name = 'Annunciators'     
 UPDATE devices SET name = 'Relay Module'        WHERE name = 'Relays'             AND system_id = (SELECT id FROM systems WHERE name='Fire Alarm');
 UPDATE devices SET name = 'Aspirating Detector' WHERE name = 'Aspirating Systems' AND system_id = (SELECT id FROM systems WHERE name='Fire Alarm');
 
-INSERT OR IGNORE INTO devices (system_id, name, unit, estimate_hours_per_unit)
-SELECT id, 'Waterflow Switch', 'each', 1.50 FROM systems WHERE name='Fire Alarm' UNION ALL
-SELECT id, 'Tamper Switch',    'each', 1.00 FROM systems WHERE name='Fire Alarm' UNION ALL
-SELECT id, 'Speaker',          'each', 1.00 FROM systems WHERE name='Fire Alarm' UNION ALL
-SELECT id, 'Speaker Strobe',   'each', 1.00 FROM systems WHERE name='Fire Alarm' UNION ALL
-SELECT id, 'Network Node',     'each', 4.00 FROM systems WHERE name='Fire Alarm' UNION ALL
-SELECT id, 'Voice Evac Panel', 'each', 8.00 FROM systems WHERE name='Fire Alarm' UNION ALL
-SELECT id, 'Isolator Module',  'each', 1.00 FROM systems WHERE name='Fire Alarm';
+INSERT OR IGNORE INTO devices (system_id, name, unit, estimate_hours_per_unit) VALUES
+((SELECT id FROM systems WHERE name='Fire Alarm'), 'Waterflow Switch', 'each', 1.50),
+((SELECT id FROM systems WHERE name='Fire Alarm'), 'Tamper Switch',    'each', 1.00),
+((SELECT id FROM systems WHERE name='Fire Alarm'), 'Speaker',          'each', 1.00),
+((SELECT id FROM systems WHERE name='Fire Alarm'), 'Speaker Strobe',   'each', 1.00),
+((SELECT id FROM systems WHERE name='Fire Alarm'), 'Network Node',     'each', 4.00),
+((SELECT id FROM systems WHERE name='Fire Alarm'), 'Voice Evac Panel', 'each', 8.00),
+((SELECT id FROM systems WHERE name='Fire Alarm'), 'Isolator Module',  'each', 1.00);
 
 -- ============ DATA CENTER (new) ============
-INSERT OR IGNORE INTO devices (system_id, name, unit, estimate_hours_per_unit)
-SELECT id, 'Server Rack',              'each', 3.00 FROM systems WHERE name='Data Center' UNION ALL
-SELECT id, 'Cabinet',                  'each', 4.00 FROM systems WHERE name='Data Center' UNION ALL
-SELECT id, 'Ladder Rack',              'feet', 0.10 FROM systems WHERE name='Data Center' UNION ALL
-SELECT id, 'Cable Tray',               'feet', 0.06 FROM systems WHERE name='Data Center' UNION ALL
-SELECT id, 'UPS',                      'each', 3.00 FROM systems WHERE name='Data Center' UNION ALL
-SELECT id, 'PDU',                      'each', 1.00 FROM systems WHERE name='Data Center' UNION ALL
-SELECT id, 'RPP',                      'each', 4.00 FROM systems WHERE name='Data Center' UNION ALL
-SELECT id, 'Environmental Sensor',     'each', 1.00 FROM systems WHERE name='Data Center' UNION ALL
-SELECT id, 'Cooling Unit Monitor',     'each', 1.50 FROM systems WHERE name='Data Center' UNION ALL
-SELECT id, 'Core Switch',              'each', 4.00 FROM systems WHERE name='Data Center' UNION ALL
-SELECT id, 'Distribution Switch',      'each', 3.00 FROM systems WHERE name='Data Center' UNION ALL
-SELECT id, 'Fiber Distribution Shelf', 'each', 1.50 FROM systems WHERE name='Data Center';
+INSERT OR IGNORE INTO devices (system_id, name, unit, estimate_hours_per_unit) VALUES
+((SELECT id FROM systems WHERE name='Data Center'), 'Server Rack',              'each', 3.00),
+((SELECT id FROM systems WHERE name='Data Center'), 'Cabinet',                  'each', 4.00),
+((SELECT id FROM systems WHERE name='Data Center'), 'Ladder Rack',              'feet', 0.10),
+((SELECT id FROM systems WHERE name='Data Center'), 'Cable Tray',               'feet', 0.06),
+((SELECT id FROM systems WHERE name='Data Center'), 'UPS',                      'each', 3.00),
+((SELECT id FROM systems WHERE name='Data Center'), 'PDU',                      'each', 1.00),
+((SELECT id FROM systems WHERE name='Data Center'), 'RPP',                      'each', 4.00),
+((SELECT id FROM systems WHERE name='Data Center'), 'Environmental Sensor',     'each', 1.00),
+((SELECT id FROM systems WHERE name='Data Center'), 'Cooling Unit Monitor',     'each', 1.50),
+((SELECT id FROM systems WHERE name='Data Center'), 'Core Switch',              'each', 4.00),
+((SELECT id FROM systems WHERE name='Data Center'), 'Distribution Switch',      'each', 3.00),
+((SELECT id FROM systems WHERE name='Data Center'), 'Fiber Distribution Shelf', 'each', 1.50);
 
 -- ============ SPECIALTY ELECTRICAL / LOW VOLTAGE (new) ============
-INSERT OR IGNORE INTO devices (system_id, name, unit, estimate_hours_per_unit)
-SELECT id, 'Clock',                  'each', 1.00 FROM systems WHERE name='Specialty Electrical / Low Voltage' UNION ALL
-SELECT id, 'Intercom Station',       'each', 1.50 FROM systems WHERE name='Specialty Electrical / Low Voltage' UNION ALL
-SELECT id, 'Paging Speaker',         'each', 1.00 FROM systems WHERE name='Specialty Electrical / Low Voltage' UNION ALL
-SELECT id, 'Master Station',         'each', 3.00 FROM systems WHERE name='Specialty Electrical / Low Voltage' UNION ALL
-SELECT id, 'Nurse Call Device',      'each', 1.25 FROM systems WHERE name='Specialty Electrical / Low Voltage' UNION ALL
-SELECT id, 'Area Of Refuge Station', 'each', 2.00 FROM systems WHERE name='Specialty Electrical / Low Voltage' UNION ALL
-SELECT id, 'Pull Box',               'each', 1.00 FROM systems WHERE name='Specialty Electrical / Low Voltage' UNION ALL
-SELECT id, 'Back Box',               'each', 0.50 FROM systems WHERE name='Specialty Electrical / Low Voltage' UNION ALL
-SELECT id, 'Conduit',                'feet', 0.08 FROM systems WHERE name='Specialty Electrical / Low Voltage' UNION ALL
-SELECT id, 'Junction Box',           'each', 0.75 FROM systems WHERE name='Specialty Electrical / Low Voltage';
+INSERT OR IGNORE INTO devices (system_id, name, unit, estimate_hours_per_unit) VALUES
+((SELECT id FROM systems WHERE name='Specialty Electrical / Low Voltage'), 'Clock',                  'each', 1.00),
+((SELECT id FROM systems WHERE name='Specialty Electrical / Low Voltage'), 'Intercom Station',       'each', 1.50),
+((SELECT id FROM systems WHERE name='Specialty Electrical / Low Voltage'), 'Paging Speaker',         'each', 1.00),
+((SELECT id FROM systems WHERE name='Specialty Electrical / Low Voltage'), 'Master Station',         'each', 3.00),
+((SELECT id FROM systems WHERE name='Specialty Electrical / Low Voltage'), 'Nurse Call Device',      'each', 1.25),
+((SELECT id FROM systems WHERE name='Specialty Electrical / Low Voltage'), 'Area Of Refuge Station', 'each', 2.00),
+((SELECT id FROM systems WHERE name='Specialty Electrical / Low Voltage'), 'Pull Box',               'each', 1.00),
+((SELECT id FROM systems WHERE name='Specialty Electrical / Low Voltage'), 'Back Box',               'each', 0.50),
+((SELECT id FROM systems WHERE name='Specialty Electrical / Low Voltage'), 'Conduit',                'feet', 0.08),
+((SELECT id FROM systems WHERE name='Specialty Electrical / Low Voltage'), 'Junction Box',           'each', 0.75);
 
 -- ============ CABLE TYPES (cable-pulling mode) ============
 INSERT OR IGNORE INTO cable_types (name) VALUES

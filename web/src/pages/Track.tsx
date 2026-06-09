@@ -41,6 +41,16 @@ export default function Track() {
     if (t) setTaskTypeId(t.id);
   }, [mode, catalog]);
 
+  // When the project defines its systems in scope (e.g. via Excel import),
+  // only offer those; otherwise show the full catalog.
+  const availableSystems = useMemo(() => {
+    const all = catalog?.systems ?? [];
+    const scoped: Array<{ id: number }> = project?.systems ?? [];
+    if (scoped.length === 0) return all;
+    const ids = new Set(scoped.map((s) => s.id));
+    return all.filter((s) => ids.has(s.id));
+  }, [catalog, project]);
+
   const devices = useMemo(
     () => catalog?.systems.find((s) => s.id === systemId)?.devices ?? [],
     [catalog, systemId],
@@ -103,7 +113,7 @@ export default function Track() {
               <label className="label">System</label>
               <select className="input" value={systemId} onChange={(e) => { setSystemId(Number(e.target.value) || ''); setDeviceId(''); }}>
                 <option value="">Select system…</option>
-                {catalog.systems.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {availableSystems.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             <div>

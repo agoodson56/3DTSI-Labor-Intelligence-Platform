@@ -38,9 +38,126 @@ projects.get('/qr/:token', requirePermission('projects.view'), async (c) => {
 });
 
 projects.get('/:id', requirePermission('projects.view'), async (c) => {
-  const row = await c.env.DB.prepare(`${PROJECT_QUERY} WHERE p.id = ?`).bind(c.req.param('id')).first();
+  const row = await c.env.DB.prepare(`${PROJECT_QUERY} WHERE p.id = ?`).bind(c.req.param('id')).first<any>();
   if (!row) return c.json({ error: 'Project not found' }, 404);
-  return c.json(row);
+  const systems = await c.env.DB.prepare(
+    `SELECT s.id, s.name FROM project_systems ps JOIN systems s ON s.id = ps.system_id WHERE ps.project_id = ? ORDER BY s.sort_order`,
+  )
+    .bind(row.id)
+    .all();
+  return c.json({ ...row, systems: systems.results });
+});
+
+/**
+ * Bulk import projects (Excel/CSV upload parsed client-side).
+ * Body: { rows: [{ projectNumber, name, customer, siteAddress, marketSegment,
+ *                  projectType, officeLocation, laborBudgetHours, pmEmail, systems: string[] }] }
+ * Idempotent: existing project numbers are skipped; missing customers are created.
+ */
+projects.post('/import', requirePermission('projects.manage'), async (c) => {
+  const body = await c.req.json<{ rows: any[] }>();
+  const rows = Array.isArray(body.rows) ? body.rows : [];
+  if (rows.length === 0) return c.json({ error: 'No rows to import' }, 400);
+  if (rows.length > 500) return c.json({ error: 'Maximum 500 rows per import' }, 400);
+
+  const systemRows = (await c.env.DB.prepare(`SELECT id, name FROM systems WHERE active = 1`).all()).results as any[];
+  const systemByName = new Map(systemRows.map((s) => [s.name.toLowerCase(), s.id]));
+  const VALID_MARKETS = ['Healthcare', 'Education', 'Government', 'Military', 'Commercial', 'Industrial', 'Data Centers'];
+
+  const results: any[] = [];
+  let created = 0;
+  let skipped = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const rowNum = i + 2; // spreadsheet row (1-based + header)
+    const report = (status: string, message: string, extra: Record<string, unknown> = {}) =>
+      results.push({ row: rowNum, projectNumber: r.projectNumber ?? '', status, message, ...extra });
+
+    try {
+      const projectNumber = String(r.projectNumber ?? '').trim();
+      const name = String(r.name ?? '').trim();
+      const customerName = String(r.customer ?? '').trim();
+      if (!projectNumber || !name || !customerName) {
+        report('error', 'Project Number, Project Name, and Customer are required');
+        continue;
+      }
+
+      const existing = await c.env.DB.prepare(`SELECT id FROM projects WHERE project_number = ?`).bind(projectNumber).first();
+      if (existing) {
+        skipped++;
+        report('skipped', 'Project number already exists');
+        continue;
+      }
+
+      const marketSegment = VALID_MARKETS.find((m) => m.toLowerCase() === String(r.marketSegment ?? '').trim().toLowerCase()) ?? 'Commercial';
+
+      // find-or-create customer
+      let customer = await c.env.DB.prepare(`SELECT id FROM customers WHERE name = ?`).bind(customerName).first<any>();
+      if (!customer) {
+        const ins = await c.env.DB.prepare(`INSERT INTO customers (name, market_segment) VALUES (?, ?)`)
+          .bind(customerName, marketSegment)
+          .run();
+        customer = { id: ins.meta.last_row_id };
+      }
+
+      // optional PM match
+      let pmUserId: number | null = null;
+      let pmNote = '';
+      const pmEmail = String(r.pmEmail ?? '').trim().toLowerCase();
+      if (pmEmail) {
+        const pm = await c.env.DB.prepare(`SELECT id FROM users WHERE email = ?`).bind(pmEmail).first<any>();
+        if (pm) pmUserId = pm.id;
+        else pmNote = ` (PM email ${pmEmail} not found - left unassigned)`;
+      }
+
+      // resolve systems
+      const systemNames: string[] = Array.isArray(r.systems)
+        ? r.systems
+        : String(r.systems ?? '').split(',').map((s: string) => s.trim()).filter(Boolean);
+      const systemIds: number[] = [];
+      const unknownSystems: string[] = [];
+      for (const sn of systemNames) {
+        const id = systemByName.get(sn.toLowerCase());
+        if (id) systemIds.push(id);
+        else unknownSystems.push(sn);
+      }
+      if (unknownSystems.length) pmNote += ` (unknown systems ignored: ${unknownSystems.join(', ')})`;
+
+      const qrToken = randomHex(16);
+      const ins = await c.env.DB.prepare(
+        `INSERT INTO projects (project_number, name, customer_id, site_address, market_segment, project_type,
+                               office_location, labor_budget_hours, pm_user_id, qr_token)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+        .bind(
+          projectNumber,
+          name,
+          customer.id,
+          String(r.siteAddress ?? '').trim(),
+          marketSegment,
+          String(r.projectType ?? '').trim() || 'Installation',
+          String(r.officeLocation ?? '').trim(),
+          Number(r.laborBudgetHours) || 0,
+          pmUserId,
+          qrToken,
+        )
+        .run();
+      const projectId = ins.meta.last_row_id;
+      for (const sid of systemIds) {
+        await c.env.DB.prepare(`INSERT OR IGNORE INTO project_systems (project_id, system_id) VALUES (?, ?)`)
+          .bind(projectId, sid)
+          .run();
+      }
+      created++;
+      report('created', `Imported${pmNote}`, { qrToken, systems: systemIds.length });
+    } catch (e: any) {
+      report('error', e.message ?? 'Unexpected error');
+    }
+  }
+
+  await audit(c, 'project.import', 'project', '', { total: rows.length, created, skipped });
+  return c.json({ total: rows.length, created, skipped, errors: results.filter((x) => x.status === 'error').length, results });
 });
 
 /** Live labor status: budget vs spent vs earned, variance, productivity score. */
