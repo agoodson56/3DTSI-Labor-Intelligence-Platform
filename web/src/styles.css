@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+/* 3DTSI brand: teal, gold, white, black - executive enterprise look */
+@theme {
+  --color-brand-50: #ecfdfa;
+  --color-brand-100: #cdfaf2;
+  --color-brand-200: #a0f2e6;
+  --color-brand-300: #64e4d6;
+  --color-brand-400: #2fccbf;
+  --color-brand-500: #14b0a5;
+  --color-brand-600: #0c8a80;
+  --color-brand-700: #0e6f68;
+  --color-brand-800: #105954;
+  --color-brand-900: #124a46;
+  --color-brand-950: #032b2a;
+
+  --color-gold-300: #f1d98a;
+  --color-gold-400: #e7c75c;
+  --color-gold-500: #d4af37;
+  --color-gold-600: #b8932a;
+
+  --color-ink-900: #0b1215;
+  --color-ink-800: #101b1f;
+  --color-ink-700: #16252b;
+  --color-ink-600: #1f333b;
+  --color-ink-500: #2c4651;
+
+  --font-sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  @apply bg-ink-900 text-slate-100 antialiased;
+}
+
+.card {
+  @apply bg-ink-800 border border-ink-600 rounded-2xl shadow-lg shadow-black/30;
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition
+         disabled:opacity-50 disabled:pointer-events-none select-none;
+}
+
+.btn-primary {
+  @apply btn bg-brand-600 hover:bg-brand-500 text-white;
+}
+
+.btn-gold {
+  @apply btn bg-gold-500 hover:bg-gold-400 text-ink-900;
+}
+
+.btn-outline {
+  @apply btn border border-ink-500 hover:border-brand-400 text-slate-200;
+}
+
+.btn-danger {
+  @apply btn bg-red-600 hover:bg-red-500 text-white;
+}
+
+.input {
+  @apply w-full rounded-xl bg-ink-700 border border-ink-500 px-4 py-3 text-slate-100
+         placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500;
+}
+
+.label {
+  @apply block text-sm font-medium text-slate-300 mb-1.5;
+}
+
+@media print {
+  body { background: white; color: black; }
+  .no-print { display: none !important; }
+  .card { background: white; border-color: #ddd; box-shadow: none; color: black; }
+}

@@ -46,7 +46,7 @@ describe('jwt', () => {
   it('rejects a tampered token', async () => {
     const token = await signJwt(payload(), SECRET);
     const [h, b, s] = token.split('.');
-    const tampered = JSON.parse(Buffer.from(b.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString());
+    const tampered = JSON.parse(new TextDecoder().decode(base64UrlDecode(b)));
     tampered.role = 'Administrator';
     const evil = `${h}.${base64UrlEncode(JSON.stringify(tampered))}.${s}`;
     expect(await verifyJwt(evil, SECRET)).toBeNull();
