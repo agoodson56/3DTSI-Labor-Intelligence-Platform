@@ -166,9 +166,12 @@ sessions.post('/:id/stop', async (c) => {
     estimateRate = device?.estimate_hours_per_unit ?? 0;
   } else {
     unit = 'feet';
-    // Cable types map onto same-named structured-cabling devices for estimating rates when available.
+    // Cable types map onto same-named catalog devices for estimating rates when
+    // available (e.g. cable type "Cat6A" -> device "Cat6A Cable").
     const match = await c.env.DB.prepare(
-      `SELECT d.estimate_hours_per_unit FROM devices d JOIN cable_types ct ON ct.name = d.name WHERE ct.id = ? AND d.unit = 'feet' LIMIT 1`,
+      `SELECT d.estimate_hours_per_unit FROM devices d
+       JOIN cable_types ct ON (d.name = ct.name OR d.name = ct.name || ' Cable')
+       WHERE ct.id = ? AND d.unit = 'feet' LIMIT 1`,
     )
       .bind(s.cable_type_id)
       .first<any>();

@@ -128,10 +128,43 @@ describe('API integration', () => {
     expect(r.data.customer_name).toBe('Metro General Hospital');
   });
 
+  it('serves the expanded 3DTSI catalog (migration 0003)', async () => {
+    const catalog = await call('GET', '/api/catalog', undefined, techToken);
+    const names = catalog.data.systems.map((s: any) => s.name);
+    for (const expected of [
+      'Structured Cabling',
+      'Fiber Optic Systems',
+      'Access Control',
+      'CCTV / Video Surveillance',
+      'Intrusion Detection',
+      'Networking',
+      'Audio Visual',
+      'Fire Alarm',
+      'Data Center',
+      'Specialty Electrical / Low Voltage',
+      'Service',
+    ]) {
+      expect(names).toContain(expected);
+    }
+    const sc = catalog.data.systems.find((s: any) => s.name === 'Structured Cabling');
+    const scNames = sc.devices.map((d: any) => d.name);
+    expect(scNames).toContain('Cat6A Cable');
+    expect(scNames).toContain('J-Hook');
+    expect(scNames).not.toContain('Fiber'); // deactivated generic
+
+    const networking = catalog.data.systems.find((s: any) => s.name === 'Networking');
+    expect(networking.devices.map((d: any) => d.name)).toContain('PoE Switch');
+    expect(networking.devices.map((d: any) => d.name)).not.toContain('Switches');
+
+    const cableTypes = catalog.data.cableTypes.map((ct: any) => ct.name);
+    expect(cableTypes).toContain('144 Strand Fiber');
+    expect(cableTypes).toContain('Shielded Cat6A');
+  });
+
   it('runs a device-installation session: start -> pause -> resume -> stop(47 horn strobes)', async () => {
     const catalog = await call('GET', '/api/catalog', undefined, techToken);
     const fireAlarm = catalog.data.systems.find((s: any) => s.name === 'Fire Alarm');
-    const hornStrobe = fireAlarm.devices.find((d: any) => d.name === 'Horn/Strobes');
+    const hornStrobe = fireAlarm.devices.find((d: any) => d.name === 'Horn Strobe');
     const install = catalog.data.taskTypes.find((t: any) => t.name === 'Device Installation');
 
     const start = await call(
@@ -230,7 +263,7 @@ describe('API integration', () => {
 
   it('feeds the labor intelligence engine', async () => {
     const rates = await call('GET', '/api/intelligence/rates/devices', undefined, adminToken);
-    const horn = rates.data.find((r: any) => r.device === 'Horn/Strobes');
+    const horn = rates.data.find((r: any) => r.device === 'Horn Strobe');
     expect(horn).toBeTruthy();
     expect(horn.samples).toBe(1);
     expect(horn.actual_hours_per_unit).toBeCloseTo(16 / 47, 2);

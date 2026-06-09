@@ -2,6 +2,22 @@
 
 All notable changes to the 3DTSI Labor Intelligence Platform.
 
+## [1.1.0] - 2026-06-09
+
+### Added
+- Full 3DTSI device taxonomy (migration 0003): ~140 manufacturer-agnostic devices across 11 systems.
+  - New systems: **Intrusion Detection**, **Data Center**, **Specialty Electrical / Low Voltage**.
+  - Structured Cabling expanded with terminations (RJ45 Jack, Surface Mount Box, Biscuit Jack, Patch Panel Port), pathways (J-Hook, Cable Tray, Conduit, Innerduct, Raceway), and hardware (Ladder Rack, wire managers).
+  - Fiber Optic Systems expanded with strand-count cables (6–144 strand), LC/SC/ST connectors, shelves, cassettes, media converters, transceivers, splice trays.
+  - Access Control expanded with reader types, locking hardware, door controllers (1/2/4-door, intelligent), and credentials.
+  - CCTV split into camera form factors (dome, bullet, PTZ, multi-sensor, fisheye, thermal, LPR), recording, and mounts/accessories.
+  - Fire Alarm expanded with waterflow/tamper switches, speaker/speaker strobe, network node, voice evac panel, isolator module.
+  - New cable types for pulling mode: Shielded Cat6A and 6–144 strand fiber.
+- Existing devices renamed 1:1 where applicable (preserving recorded labor history); superseded generics deactivated.
+
+### Changed
+- Cable-type estimating-rate lookup now matches device names with or without a " Cable" suffix.
+
 ## [1.0.0] - 2026-06-09
 
 ### Added
