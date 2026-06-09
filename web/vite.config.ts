@@ -33,4 +33,9 @@ export default defineConfig({
       '/api': 'http://localhost:8787',
     },
   },
+  preview: {
+    proxy: {
+      '/api': 'http://localhost:8787',
+    },
+  },
 });
