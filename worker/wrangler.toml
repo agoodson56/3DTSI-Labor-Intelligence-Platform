@@ -1,0 +1,29 @@
+# 3DTSI Labor Intelligence Platform - API Worker
+name = "lip-api"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+migrations_dir = "migrations"
+
+[observability]
+enabled = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "lip-db"
+# Replace with the id printed by: wrangler d1 create lip-db
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "lip-files"
+
+[vars]
+# Comma-separated list of allowed web origins (Cloudflare Pages URL + custom domain)
+ALLOWED_ORIGINS = "http://localhost:5173,https://lip.pages.dev"
+# Access-token lifetime in minutes (session timeout)
+SESSION_TIMEOUT_MINUTES = "480"
+
+# Secrets (set with `wrangler secret put JWT_SECRET`):
+#   JWT_SECRET - 64+ random characters used to sign JWTs

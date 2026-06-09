@@ -1,0 +1,20 @@
+{
+  "name": "3dtsi-labor-intelligence-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "3DTSI Labor Intelligence Platform - continuously learning labor intelligence database for low-voltage construction operations",
+  "workspaces": [
+    "worker",
+    "web"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=worker",
+    "dev:web": "npm run dev --workspace=web",
+    "build": "npm run build --workspace=web",
+    "test": "npm run test --workspace=worker",
+    "db:migrate:local": "npx wrangler d1 migrations apply lip-db --local --config worker/wrangler.toml",
+    "db:migrate:remote": "npx wrangler d1 migrations apply lip-db --remote --config worker/wrangler.toml",
+    "deploy": "powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1",
+    "backup": "powershell -ExecutionPolicy Bypass -File scripts/backup.ps1"
+  }
+}
