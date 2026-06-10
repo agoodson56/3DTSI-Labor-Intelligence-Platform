@@ -70,6 +70,11 @@ function Users() {
     load();
   };
 
+  const changeRole = async (u: any, roleId: number) => {
+    await put(`/api/admin/users/${u.id}`, { fullName: u.full_name, roleId, officeLocation: u.office_location, phone: u.phone, active: !!u.active });
+    load();
+  };
+
   return (
     <div className="grid lg:grid-cols-2 gap-5">
       {can('users.manage') && (
@@ -94,10 +99,17 @@ function Users() {
             <div key={u.id} className="flex items-center justify-between gap-2 p-2 rounded-xl hover:bg-ink-700">
               <div>
                 <div className="text-sm font-semibold">{u.full_name} {!u.active && <span className="text-red-400 text-xs">(disabled)</span>}</div>
-                <div className="text-xs text-slate-400">{u.email} · <span className="text-gold-500">{u.role}</span>{u.mfa_enabled ? ' · 🔒 MFA' : ''}</div>
+                <div className="text-xs text-slate-400">{u.email}{u.mfa_enabled ? ' · 🔒 MFA' : ''}</div>
               </div>
-              {can('users.manage') && (
-                <button className="btn-outline px-3 py-1.5 text-xs" onClick={() => toggleActive(u)}>{u.active ? 'Disable' : 'Enable'}</button>
+              {can('users.manage') ? (
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <select className="input !w-auto !py-1.5 !px-2 text-xs" value={u.role_id} onChange={(e) => changeRole(u, Number(e.target.value))}>
+                    {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                  <button className="btn-outline px-3 py-1.5 text-xs" onClick={() => toggleActive(u)}>{u.active ? 'Disable' : 'Enable'}</button>
+                </div>
+              ) : (
+                <span className="text-gold-500 text-xs">{u.role}</span>
               )}
             </div>
           ))}

@@ -583,6 +583,15 @@ describe('API integration', () => {
       const login = await call('POST', '/api/auth/login', { email: 'instant@3dtsi.com', password: 'GoodPassword#1' });
       expect(login.status).toBe(200);
       expect(login.data.user.role).toBe('Technician');
+
+      // pre-assigned emails get their assigned role automatically (migration 0010)
+      await call('POST', '/api/auth/register', { email: 'kgrey@3dtsi.com', password: 'GoodPassword#1', fullName: 'K Grey' });
+      const super1 = await call('POST', '/api/auth/login', { email: 'kgrey@3dtsi.com', password: 'GoodPassword#1' });
+      expect(super1.data.user.role).toBe('Superintendent');
+
+      await call('POST', '/api/auth/register', { email: 'FPedersen@3dtsi.com', password: 'GoodPassword#1', fullName: 'F Pedersen' });
+      const admin1 = await call('POST', '/api/auth/login', { email: 'fpedersen@3dtsi.com', password: 'GoodPassword#1' });
+      expect(admin1.data.user.role).toBe('Administrator');
     } finally {
       env.RESEND_API_KEY = savedKey;
     }

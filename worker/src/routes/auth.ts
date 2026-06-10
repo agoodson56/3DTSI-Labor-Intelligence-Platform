@@ -109,7 +109,12 @@ auth.post('/register', async (c) => {
   }
 
   const { hash, salt } = await hashPassword(b.password);
-  const role = await c.env.DB.prepare(`SELECT id FROM roles WHERE name = 'Technician'`).first<{ id: number }>();
+  // Pre-assigned role for this email (set up by an admin), otherwise Technician.
+  const pre = await c.env.DB.prepare(`SELECT role_name FROM role_preassignments WHERE email = ?`).bind(email).first<any>();
+  const role = await c.env.DB.prepare(`SELECT id FROM roles WHERE name = ?`)
+    .bind(pre?.role_name ?? 'Technician')
+    .first<{ id: number }>()
+    .then(async (r) => r ?? (await c.env.DB.prepare(`SELECT id FROM roles WHERE name = 'Technician'`).first<{ id: number }>()));
   const verificationRequired = emailConfigured(c.env);
 
   if (verificationRequired) {
