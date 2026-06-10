@@ -1,11 +1,30 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../lib/auth';
 
-/** Logo that pops a 400x400 preview centered on the page on hover (or tap on touch devices). */
+/**
+ * Logo that pops a 400x400 preview on hover/tap. Hidden door: 7 quick clicks
+ * (within 1.5s of each other) opens the Administration area.
+ */
 function LogoPeek({ className }: { className: string }) {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
+  const clicks = useRef({ count: 0, last: 0 });
+
+  const handleClick = () => {
+    const now = Date.now();
+    clicks.current.count = now - clicks.current.last < 1500 ? clicks.current.count + 1 : 1;
+    clicks.current.last = now;
+    if (clicks.current.count >= 7) {
+      clicks.current.count = 0;
+      setOpen(false);
+      navigate('/admin');
+      return;
+    }
+    setOpen((v) => !v);
+  };
+
   return (
     <>
       <img
@@ -14,7 +33,7 @@ function LogoPeek({ className }: { className: string }) {
         className={`${className} cursor-pointer`}
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
-        onClick={() => setOpen((v) => !v)}
+        onClick={handleClick}
       />
       {open &&
         // portal to <body>: ancestors with backdrop-filter (app header) would
@@ -43,7 +62,7 @@ const NAV = [
   { to: '/dashboard', label: 'Dashboard', icon: '📊', permission: 'dashboard.view' },
   { to: '/intelligence', label: 'Intelligence', icon: '🧠', permission: 'intelligence.view' },
   { to: '/reports', label: 'Reports', icon: '📄', permission: 'reports.view' },
-  { to: '/admin', label: 'Admin', icon: '⚙️', permission: 'users.view' },
+  // Admin is intentionally NOT in the menu - 7 quick clicks on the logo open it.
   { to: '/guide', label: 'Guide', icon: '📖', permission: '' }, // everyone
 ];
 

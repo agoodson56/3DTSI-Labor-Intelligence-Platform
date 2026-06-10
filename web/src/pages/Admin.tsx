@@ -4,13 +4,21 @@ import { useAuth } from '../lib/auth';
 
 export default function Admin() {
   const { can } = useAuth();
-  const [tab, setTab] = useState<'users' | 'roles' | 'projects' | 'catalog'>('users');
   const tabs = [
     can('users.view') && { key: 'users', label: 'Users' },
     can('users.view') && { key: 'roles', label: 'Roles' },
     can('projects.manage') && { key: 'projects', label: 'Projects' },
     can('catalog.manage') && { key: 'catalog', label: 'Catalog' },
   ].filter(Boolean) as Array<{ key: any; label: string }>;
+  const [tab, setTab] = useState<'users' | 'roles' | 'projects' | 'catalog'>(tabs[0]?.key ?? 'users');
+
+  if (tabs.length === 0) {
+    return (
+      <div className="card p-10 text-center text-slate-400 max-w-xl">
+        🔒 Your role doesn't have access to the administration area.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

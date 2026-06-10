@@ -136,7 +136,10 @@ export default function Guide() {
 
       {can('projects.manage') && (
         <Section icon="🗂️" title="For Project Managers: create projects">
-          <p>Go to <B>Admin → Projects</B>. There are two easy ways:</p>
+          <p>
+            <Gold>Secret door:</Gold> the Administration area isn't in the menu. To open it, <B>click the logo 7 times
+            quickly</B> (the little logo at the top of the screen). Then pick the <B>Projects</B> tab. There are two easy ways:
+          </p>
           <Step n={1}>
             <B>The Excel form:</B> tap <Gold>⬇ Download Project Form</Gold>, fill out the Answer column in Excel
             (project number, name, customer, systems…), save it, then tap <Gold>⬆ Upload Project</Gold> and pick your file.
@@ -168,6 +171,7 @@ export default function Guide() {
 
       {can('users.manage') && (
         <Section icon="⚙️" title="For Admins: run the platform">
+          <p><Gold>Secret door:</Gold> <B>click the logo 7 times quickly</B> to open the Administration area.</p>
           <ul className="list-disc ml-5 space-y-2">
             <li><B>Admin → Users</B>: add people, disable accounts, see who has MFA on. Self-registered staff start as Technicians — promote them here.</li>
             <li><B>Admin → Roles</B>: tick or untick what each role is allowed to do.</li>

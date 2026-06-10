@@ -97,6 +97,22 @@ describe('API integration', () => {
     expect(sales.permissions).toContain('intelligence.view');
     expect(sales.permissions).not.toContain('projects.manage');
     expect(sales.permissions).not.toContain('sessions.create');
+
+    // Projects + Catalog admin tabs: Admin, PM, Superintendent, Lead Technician only
+    const byName = (n: string) => roles.data.roles.find((r: any) => r.name === n).permissions;
+    for (const allowed of ['Project Manager', 'Superintendent', 'Lead Technician']) {
+      expect(byName(allowed)).toContain('projects.manage');
+      expect(byName(allowed)).toContain('catalog.manage');
+    }
+    expect(byName('Operations Manager')).not.toContain('catalog.manage');
+    expect(byName('Foreman')).not.toContain('projects.manage');
+
+    // Users + Roles admin tabs: Administrator only
+    for (const blocked of ['Executive', 'Operations Manager', 'Project Manager', 'Superintendent', 'Lead Technician']) {
+      expect(byName(blocked)).not.toContain('users.view');
+      expect(byName(blocked)).not.toContain('users.manage');
+      expect(byName(blocked)).not.toContain('roles.manage');
+    }
   });
 
   it('creates a technician user with role-limited permissions', async () => {
