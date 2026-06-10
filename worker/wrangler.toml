@@ -24,6 +24,10 @@ bucket_name = "lip-files"
 ALLOWED_ORIGINS = "http://localhost:5173,https://3dtsi-lip.pages.dev"
 # Access-token lifetime in minutes (session timeout)
 SESSION_TIMEOUT_MINUTES = "480"
+# Sender for verification / password-reset emails (verify a domain at resend.com
+# and change this to e.g. "3DTSI LIP <no-reply@3dtsi.com>")
+EMAIL_FROM = "3DTSI LIP <onboarding@resend.dev>"
 
-# Secrets (set with `wrangler secret put JWT_SECRET`):
-#   JWT_SECRET - 64+ random characters used to sign JWTs
+# Secrets (set with `wrangler secret put <NAME>`):
+#   JWT_SECRET     - 64+ random characters used to sign JWTs
+#   RESEND_API_KEY - resend.com API key for verification + password-reset email

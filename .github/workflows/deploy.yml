@@ -83,6 +83,10 @@ jobs:
       - name: Set JWT secret on the worker
         run: printf '%s' "${{ secrets.JWT_SECRET }}" | npx wrangler secret put JWT_SECRET --config worker/wrangler.toml
 
+      - name: Set email API key on the worker (optional)
+        if: ${{ secrets.RESEND_API_KEY != '' }}
+        run: printf '%s' "${{ secrets.RESEND_API_KEY }}" | npx wrangler secret put RESEND_API_KEY --config worker/wrangler.toml
+
       - name: Build web app
         run: npm run build --workspace=web
         env:

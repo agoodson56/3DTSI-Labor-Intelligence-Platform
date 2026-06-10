@@ -2,10 +2,19 @@ import { Hono } from 'hono';
 import { hashPassword, verifyPassword, randomHex } from '../lib/crypto';
 import { signJwt, verifyJwt } from '../lib/jwt';
 import { generateTotpSecret, verifyTotp, otpauthUrl } from '../lib/totp';
+import { emailConfigured, sendEmail, codeEmailHtml } from '../lib/email';
 import { requireAuth, clientIp, deviceFromUserAgent, audit } from '../middleware';
 import type { AppContext } from '../types';
 
 const auth = new Hono<AppContext>();
+
+const REGISTRATION_DOMAIN = '@3dtsi.com';
+
+function sixDigitCode(): string {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return String(buf[0] % 1_000_000).padStart(6, '0');
+}
 
 function sessionMinutes(envValue: string): number {
   const n = parseInt(envValue, 10);
@@ -80,6 +89,123 @@ auth.post('/bootstrap', async (c) => {
   return c.json({ ok: true, message: 'Administrator account created. You can now log in.' });
 });
 
+/**
+ * Self-registration: 3DTSI staff only (email must end with @3dtsi.com).
+ * Creates a Technician account that cannot sign in until the emailed
+ * 6-digit verification code is confirmed.
+ */
+auth.post('/register', async (c) => {
+  if (!emailConfigured(c.env)) {
+    return c.json({ error: 'Self-registration is not available yet - ask an administrator to create your account.' }, 503);
+  }
+  const b = await c.req.json<{ email: string; password: string; fullName: string }>();
+  const email = String(b.email ?? '').trim().toLowerCase();
+  if (!email.endsWith(REGISTRATION_DOMAIN)) {
+    return c.json({ error: `Registration is limited to 3DTSI staff - your email must end with ${REGISTRATION_DOMAIN}` }, 400);
+  }
+  if (!b.fullName || !b.password || b.password.length < 10) {
+    return c.json({ error: 'Full name and a password of at least 10 characters are required' }, 400);
+  }
+  const existing = await c.env.DB.prepare(`SELECT id, email_verified FROM users WHERE email = ?`).bind(email).first<any>();
+  if (existing) {
+    return c.json({ error: existing.email_verified ? 'An account with that email already exists - sign in instead.' : 'That email is already registered but not verified - use "Resend code".' }, 409);
+  }
+
+  const { hash, salt } = await hashPassword(b.password);
+  const role = await c.env.DB.prepare(`SELECT id FROM roles WHERE name = 'Technician'`).first<{ id: number }>();
+  const code = sixDigitCode();
+  await c.env.DB.prepare(
+    `INSERT INTO users (email, password_hash, password_salt, full_name, role_id, email_verified, verify_code, verify_expires)
+     VALUES (?, ?, ?, ?, ?, 0, ?, datetime('now', '+30 minutes'))`,
+  )
+    .bind(email, hash, salt, b.fullName.trim(), role!.id, code)
+    .run();
+
+  await sendEmail(
+    c.env,
+    email,
+    'Verify your 3DTSI LIP account',
+    codeEmailHtml('Verify your email', code, 'Enter this code in the app to activate your account. It expires in 30 minutes. If you did not register, ignore this email.'),
+  );
+  return c.json({ ok: true, message: `Verification code sent to ${email}. Enter it to activate your account.` });
+});
+
+auth.post('/verify-email', async (c) => {
+  const { email, code } = await c.req.json<{ email: string; code: string }>();
+  const user = await c.env.DB.prepare(
+    `SELECT id, verify_code, verify_expires FROM users WHERE email = ? AND email_verified = 0`,
+  )
+    .bind(String(email ?? '').toLowerCase())
+    .first<any>();
+  if (!user || !user.verify_code || user.verify_code !== String(code ?? '').trim()) {
+    return c.json({ error: 'Invalid verification code' }, 400);
+  }
+  const expired = await c.env.DB.prepare(`SELECT datetime('now') > ? AS expired`).bind(user.verify_expires).first<any>();
+  if (expired?.expired) return c.json({ error: 'Verification code expired - request a new one.' }, 400);
+
+  await c.env.DB.prepare(`UPDATE users SET email_verified = 1, verify_code = NULL, verify_expires = NULL WHERE id = ?`)
+    .bind(user.id)
+    .run();
+  return c.json({ ok: true, message: 'Email verified - you can now sign in.' });
+});
+
+auth.post('/resend-verification', async (c) => {
+  const { email } = await c.req.json<{ email: string }>();
+  const user = await c.env.DB.prepare(`SELECT id FROM users WHERE email = ? AND email_verified = 0`)
+    .bind(String(email ?? '').toLowerCase())
+    .first<any>();
+  // Always respond ok - do not reveal whether an account exists.
+  if (user && emailConfigured(c.env)) {
+    const code = sixDigitCode();
+    await c.env.DB.prepare(`UPDATE users SET verify_code = ?, verify_expires = datetime('now', '+30 minutes') WHERE id = ?`)
+      .bind(code, user.id)
+      .run();
+    await sendEmail(c.env, String(email).toLowerCase(), 'Your 3DTSI LIP verification code',
+      codeEmailHtml('Verify your email', code, 'This code expires in 30 minutes.'));
+  }
+  return c.json({ ok: true, message: 'If that address has a pending registration, a new code is on the way.' });
+});
+
+/** Forgot password: emails a 6-digit reset code. */
+auth.post('/forgot-password', async (c) => {
+  const { email } = await c.req.json<{ email: string }>();
+  const user = await c.env.DB.prepare(`SELECT id FROM users WHERE email = ? AND active = 1`)
+    .bind(String(email ?? '').toLowerCase())
+    .first<any>();
+  if (user && emailConfigured(c.env)) {
+    const code = sixDigitCode();
+    await c.env.DB.prepare(`UPDATE users SET reset_code = ?, reset_expires = datetime('now', '+30 minutes') WHERE id = ?`)
+      .bind(code, user.id)
+      .run();
+    await sendEmail(c.env, String(email).toLowerCase(), 'Reset your 3DTSI LIP password',
+      codeEmailHtml('Password reset', code, 'Enter this code with your new password. It expires in 30 minutes. If you did not request a reset, you can ignore this email.'));
+  }
+  return c.json({ ok: true, message: 'If that address has an account, a reset code is on the way.' });
+});
+
+auth.post('/reset-password', async (c) => {
+  const { email, code, newPassword } = await c.req.json<{ email: string; code: string; newPassword: string }>();
+  if (!newPassword || newPassword.length < 10) return c.json({ error: 'New password must be at least 10 characters' }, 400);
+  const user = await c.env.DB.prepare(`SELECT id, reset_code, reset_expires FROM users WHERE email = ? AND active = 1`)
+    .bind(String(email ?? '').toLowerCase())
+    .first<any>();
+  if (!user || !user.reset_code || user.reset_code !== String(code ?? '').trim()) {
+    return c.json({ error: 'Invalid reset code' }, 400);
+  }
+  const expired = await c.env.DB.prepare(`SELECT datetime('now') > ? AS expired`).bind(user.reset_expires).first<any>();
+  if (expired?.expired) return c.json({ error: 'Reset code expired - request a new one.' }, 400);
+
+  const { hash, salt } = await hashPassword(newPassword);
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      `UPDATE users SET password_hash = ?, password_salt = ?, reset_code = NULL, reset_expires = NULL, updated_at = datetime('now') WHERE id = ?`,
+    ).bind(hash, salt, user.id),
+    // revoke all existing sessions after a reset
+    c.env.DB.prepare(`UPDATE auth_sessions SET revoked = 1 WHERE user_id = ?`).bind(user.id),
+  ]);
+  return c.json({ ok: true, message: 'Password updated - sign in with your new password.' });
+});
+
 auth.post('/login', async (c) => {
   const { email, password } = await c.req.json<{ email: string; password: string }>();
   const ua = c.req.header('User-Agent') ?? '';
@@ -93,6 +219,10 @@ auth.post('/login', async (c) => {
       .bind(user?.id ?? null, email ?? '', clientIp(c), ua, deviceFromUserAgent(ua))
       .run();
     return c.json({ error: 'Invalid email or password' }, 401);
+  }
+
+  if (!user.email_verified) {
+    return c.json({ error: 'Your email is not verified yet - enter the code we sent you, or use "Resend code".', needsVerification: true }, 403);
   }
 
   if (user.mfa_enabled) {

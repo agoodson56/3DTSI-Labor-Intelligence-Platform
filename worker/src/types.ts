@@ -6,6 +6,8 @@ export interface Env {
   JWT_SECRET: string;
   ALLOWED_ORIGINS: string;
   SESSION_TIMEOUT_MINUTES: string;
+  RESEND_API_KEY?: string;
+  EMAIL_FROM?: string;
 }
 
 export interface AuthedUser {

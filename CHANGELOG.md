@@ -2,6 +2,15 @@
 
 All notable changes to the 3DTSI Labor Intelligence Platform.
 
+## [1.4.0] - 2026-06-10
+
+### Added
+- **Self-registration for 3DTSI staff** (migration 0006): "Create account" on the login screen, restricted to emails ending in `@3dtsi.com`. New accounts receive a 6-digit email verification code (30-minute expiry) and cannot sign in until verified. Self-registered users start as Technicians; admins can promote them.
+- **Forgot password**: emailed 6-digit reset code; resetting revokes all existing sessions.
+- Resend-code endpoint; account-enumeration-safe responses on forgot/resend.
+- Outbound email via Resend API (`RESEND_API_KEY` secret + `EMAIL_FROM` var); CI pushes the key automatically when the GitHub secret is present. Until configured, self-registration is disabled with a clear message and admin-created accounts work as before.
+- Logo branding: 3D LABOR logo on login/headers/icons, 400x400 hover popup, black corner fill. Admin project deletion with archive safeguard. (Shipped since 1.3.0.)
+
 ## [1.3.0] - 2026-06-10
 
 ### Added

@@ -13,7 +13,19 @@ const env: any = {
   JWT_SECRET: 'integration-test-secret-integration-test-secret-0123456789abcdef',
   ALLOWED_ORIGINS: 'http://localhost:5173',
   SESSION_TIMEOUT_MINUTES: '480',
+  RESEND_API_KEY: 'test-key',
+  EMAIL_FROM: 'Test <test@example.com>',
 };
+
+// Outbound email is stubbed - codes are read from the test database.
+const sentEmails: Array<{ to: string; subject: string }> = [];
+globalThis.fetch = (async (url: any, init?: any) => {
+  if (String(url).includes('api.resend.com')) {
+    sentEmails.push(JSON.parse(init.body));
+    return new Response('{"id":"stub"}', { status: 200 });
+  }
+  throw new Error(`Unexpected outbound fetch in tests: ${url}`);
+}) as any;
 
 let adminToken = '';
 let techToken = '';
@@ -431,6 +443,64 @@ describe('API integration', () => {
     expect(detail.data.status).toBe('archived'); // still exists for reporting
     const labor = await call('GET', `/api/projects/${projectId}/labor`, undefined, adminToken);
     expect(labor.data.completedSessions).toBe(2); // intelligence history intact
+  });
+
+  it('self-registration: requires @3dtsi.com, blocks login until the emailed code verifies', async () => {
+    // wrong domain rejected
+    const bad = await call('POST', '/api/auth/register', { email: 'tech@gmail.com', password: 'GoodPassword#1', fullName: 'Outsider' });
+    expect(bad.status).toBe(400);
+    expect(bad.data.error).toContain('@3dtsi.com');
+
+    // valid registration sends a code
+    const reg = await call('POST', '/api/auth/register', { email: 'newtech@3dtsi.com', password: 'GoodPassword#1', fullName: 'New Tech' });
+    expect(reg.status).toBe(200);
+    expect(sentEmails.some((e: any) => e.to?.[0] === 'newtech@3dtsi.com')).toBe(true);
+
+    // duplicate registration rejected
+    expect((await call('POST', '/api/auth/register', { email: 'newtech@3dtsi.com', password: 'GoodPassword#1', fullName: 'Dup' })).status).toBe(409);
+
+    // login blocked before verification
+    const blocked = await call('POST', '/api/auth/login', { email: 'newtech@3dtsi.com', password: 'GoodPassword#1' });
+    expect(blocked.status).toBe(403);
+    expect(blocked.data.needsVerification).toBe(true);
+
+    // wrong code rejected, real code (from DB) accepted
+    expect((await call('POST', '/api/auth/verify-email', { email: 'newtech@3dtsi.com', code: '000000' })).status).toBe(400);
+    const row = env.DB._raw.prepare(`SELECT verify_code FROM users WHERE email = 'newtech@3dtsi.com'`).get();
+    const verified = await call('POST', '/api/auth/verify-email', { email: 'newtech@3dtsi.com', code: row.verify_code });
+    expect(verified.status).toBe(200);
+
+    // login now works, with the default Technician role
+    const login = await call('POST', '/api/auth/login', { email: 'newtech@3dtsi.com', password: 'GoodPassword#1' });
+    expect(login.status).toBe(200);
+    expect(login.data.user.role).toBe('Technician');
+  });
+
+  it('forgot-password resets via emailed code and revokes old sessions', async () => {
+    const oldLogin = await call('POST', '/api/auth/login', { email: 'newtech@3dtsi.com', password: 'GoodPassword#1' });
+    const oldToken = oldLogin.data.token;
+
+    expect((await call('POST', '/api/auth/forgot-password', { email: 'newtech@3dtsi.com' })).status).toBe(200);
+    const row = env.DB._raw.prepare(`SELECT reset_code FROM users WHERE email = 'newtech@3dtsi.com'`).get();
+    expect(row.reset_code).toBeTruthy();
+
+    // short password rejected, then real reset
+    expect((await call('POST', '/api/auth/reset-password', { email: 'newtech@3dtsi.com', code: row.reset_code, newPassword: 'short' })).status).toBe(400);
+    const reset = await call('POST', '/api/auth/reset-password', { email: 'newtech@3dtsi.com', code: row.reset_code, newPassword: 'BrandNewPass#42' });
+    expect(reset.status).toBe(200);
+
+    // old password dead, old session revoked, new password works
+    expect((await call('POST', '/api/auth/login', { email: 'newtech@3dtsi.com', password: 'GoodPassword#1' })).status).toBe(401);
+    expect((await call('GET', '/api/auth/me', undefined, oldToken)).status).toBe(401);
+    expect((await call('POST', '/api/auth/login', { email: 'newtech@3dtsi.com', password: 'BrandNewPass#42' })).status).toBe(200);
+  });
+
+  it('authenticated users can change their own password', async () => {
+    const login = await call('POST', '/api/auth/login', { email: 'newtech@3dtsi.com', password: 'BrandNewPass#42' });
+    const t = login.data.token;
+    expect((await call('POST', '/api/auth/me/password', { currentPassword: 'wrong', newPassword: 'AnotherPass#99x' }, t)).status).toBe(401);
+    expect((await call('POST', '/api/auth/me/password', { currentPassword: 'BrandNewPass#42', newPassword: 'AnotherPass#99x' }, t)).status).toBe(200);
+    expect((await call('POST', '/api/auth/login', { email: 'newtech@3dtsi.com', password: 'AnotherPass#99x' })).status).toBe(200);
   });
 
   it('rejects requests without a token', async () => {
