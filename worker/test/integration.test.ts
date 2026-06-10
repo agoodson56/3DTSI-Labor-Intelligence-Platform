@@ -87,6 +87,18 @@ describe('API integration', () => {
     expect(hist.data.some((h: any) => h.success === 0)).toBe(true);
   });
 
+  it('seeds all ten roles including Salesperson', async () => {
+    const roles = await call('GET', '/api/admin/roles', undefined, adminToken);
+    const names = roles.data.roles.map((r: any) => r.name);
+    for (const expected of ['Administrator', 'Executive', 'Operations Manager', 'Estimator', 'Project Manager', 'Superintendent', 'Foreman', 'Lead Technician', 'Technician', 'Salesperson']) {
+      expect(names).toContain(expected);
+    }
+    const sales = roles.data.roles.find((r: any) => r.name === 'Salesperson');
+    expect(sales.permissions).toContain('intelligence.view');
+    expect(sales.permissions).not.toContain('projects.manage');
+    expect(sales.permissions).not.toContain('sessions.create');
+  });
+
   it('creates a technician user with role-limited permissions', async () => {
     const roles = await call('GET', '/api/admin/roles', undefined, adminToken);
     const techRole = roles.data.roles.find((r: any) => r.name === 'Technician');
