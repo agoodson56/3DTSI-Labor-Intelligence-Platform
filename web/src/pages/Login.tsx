@@ -40,11 +40,8 @@ export default function Login() {
     <div className="min-h-full flex items-center justify-center p-6 bg-[radial-gradient(ellipse_at_top,rgba(12,138,128,0.25),transparent_60%)]">
       <div className="card w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <div className="text-4xl font-black tracking-tight">
-            <span className="text-brand-400">3D</span>
-            <span className="text-gold-500">TSI</span>
-          </div>
-          <div className="text-xs uppercase tracking-[0.3em] text-slate-400 mt-2">Labor Intelligence Platform</div>
+          <img src="/logo.png" alt="3D Labor" className="w-36 h-36 mx-auto rounded-3xl shadow-lg shadow-black/40" />
+          <div className="text-xs uppercase tracking-[0.3em] text-slate-400 mt-4">Labor Intelligence Platform</div>
         </div>
 
         {notice && <div className="mb-4 p-3 rounded-xl bg-brand-900/60 border border-brand-700 text-brand-200 text-sm">{notice}</div>}

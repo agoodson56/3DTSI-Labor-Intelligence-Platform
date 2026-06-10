@@ -20,12 +20,9 @@ export default function Layout({ children }: { children: ReactNode }) {
     <div className="min-h-full flex flex-col md:flex-row">
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:flex-col w-60 shrink-0 bg-ink-800 border-r border-ink-600 p-4 gap-1 no-print">
-        <div className="px-2 pb-4 border-b border-ink-600 mb-3">
-          <div className="text-xl font-black tracking-tight">
-            <span className="text-brand-400">3D</span>
-            <span className="text-gold-500">TSI</span>
-          </div>
-          <div className="text-[11px] uppercase tracking-widest text-slate-400 mt-0.5">Labor Intelligence</div>
+        <div className="px-2 pb-4 border-b border-ink-600 mb-3 flex items-center gap-3">
+          <img src="/logo.png" alt="3D Labor" className="w-11 h-11 rounded-xl" />
+          <div className="text-[11px] uppercase tracking-widest text-slate-400 leading-tight">Labor<br />Intelligence</div>
         </div>
         {items.map((n) => (
           <NavLink
@@ -53,10 +50,9 @@ export default function Layout({ children }: { children: ReactNode }) {
 
       {/* Mobile header */}
       <header className="md:hidden sticky top-0 z-20 bg-ink-800/95 backdrop-blur border-b border-ink-600 px-4 py-3 flex items-center justify-between no-print">
-        <div className="text-lg font-black">
-          <span className="text-brand-400">3D</span>
-          <span className="text-gold-500">TSI</span>
-          <span className="text-slate-400 font-medium text-xs ml-2 uppercase tracking-widest">LIP</span>
+        <div className="flex items-center gap-2.5">
+          <img src="/logo.png" alt="3D Labor" className="w-8 h-8 rounded-lg" />
+          <span className="text-slate-400 font-medium text-xs uppercase tracking-widest">Labor Intelligence</span>
         </div>
         <button onClick={() => navigate('/settings')} className="text-sm text-slate-300 font-medium">
           {user?.fullName?.split(' ')[0]} <span className="text-gold-500">▾</span>
