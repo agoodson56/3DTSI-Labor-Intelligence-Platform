@@ -360,6 +360,7 @@ function Projects() {
                 <div>
                   <div className="text-sm font-semibold"><span className="text-brand-400">{p.project_number}</span> {p.name}</div>
                   <div className="text-xs text-slate-400">{p.customer_name} · {p.market_segment} · {p.status}</div>
+                  {p.systems_list && <div className="text-[11px] text-brand-300 mt-0.5">🔧 {p.systems_list}</div>}
                 </div>
                 <button className="btn-outline px-3 py-1.5 text-xs shrink-0" onClick={() => setQr({ project: p.project_number, token: p.qr_token })}>QR</button>
               </div>

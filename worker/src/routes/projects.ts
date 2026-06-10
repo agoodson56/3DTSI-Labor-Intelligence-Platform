@@ -7,7 +7,10 @@ const projects = new Hono<AppContext>();
 projects.use('*', requireAuth);
 
 const PROJECT_QUERY = `
-  SELECT p.*, c.name AS customer_name, u.full_name AS pm_name
+  SELECT p.*, c.name AS customer_name, u.full_name AS pm_name,
+         (SELECT GROUP_CONCAT(s.name, ', ')
+          FROM project_systems ps JOIN systems s ON s.id = ps.system_id
+          WHERE ps.project_id = p.id) AS systems_list
   FROM projects p
   JOIN customers c ON c.id = p.customer_id
   LEFT JOIN users u ON u.id = p.pm_user_id`;

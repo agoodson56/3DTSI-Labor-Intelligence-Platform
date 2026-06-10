@@ -365,8 +365,9 @@ describe('API integration', () => {
     const customers = await call('GET', '/api/projects/customers/list', undefined, adminToken);
     expect(customers.data.some((c: any) => c.name === 'New Import Customer')).toBe(true);
 
-    // project detail exposes its systems scope
+    // project list and detail expose the systems scope
     const list = await call('GET', '/api/projects?q=P-2026-201', undefined, adminToken);
+    expect(list.data[0].systems_list.split(', ').sort()).toEqual(['Access Control', 'Fire Alarm']);
     const detail = await call('GET', `/api/projects/${list.data[0].id}`, undefined, adminToken);
     expect(detail.data.systems.map((s: any) => s.name).sort()).toEqual(['Access Control', 'Fire Alarm']);
 

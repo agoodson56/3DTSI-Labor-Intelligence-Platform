@@ -10,6 +10,7 @@ interface Project {
   site_address: string;
   market_segment: string;
   status: string;
+  systems_list: string | null;
 }
 
 export default function ProjectSelect() {
@@ -105,6 +106,13 @@ export default function ProjectSelect() {
                 </div>
                 <div className="text-sm text-slate-400 mt-0.5">{p.customer_name}</div>
                 {p.site_address && <div className="text-xs text-slate-500 mt-1">📍 {p.site_address}</div>}
+                {p.systems_list && (
+                  <div className="flex gap-1.5 flex-wrap mt-2">
+                    {p.systems_list.split(', ').map((s) => (
+                      <span key={s} className="text-[10px] bg-ink-700 border border-ink-500 rounded-full px-2 py-0.5 text-slate-300">{s}</span>
+                    ))}
+                  </div>
+                )}
               </div>
               <span className="text-[10px] uppercase tracking-wider bg-brand-900 text-brand-300 border border-brand-700 rounded-full px-2.5 py-1">
                 {p.market_segment}
