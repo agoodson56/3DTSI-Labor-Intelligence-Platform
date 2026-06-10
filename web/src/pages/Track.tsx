@@ -19,6 +19,8 @@ export default function Track() {
   const [cableTypeId, setCableTypeId] = useState<number | ''>('');
   const [taskTypeId, setTaskTypeId] = useState<number | ''>('');
   const [crewSize, setCrewSize] = useState(2);
+  const [technicians, setTechnicians] = useState<Array<{ id: number; full_name: string }>>([]);
+  const [crewIds, setCrewIds] = useState<Array<number | ''>>([]);
   const [reels, setReels] = useState<number[]>([1000]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -32,6 +34,7 @@ export default function Track() {
         if (install) setTaskTypeId(install.id);
       })
       .catch((e) => setError(e.message));
+    get('/api/catalog/technicians').then(setTechnicians).catch(() => {});
   }, [projectId]);
 
   useEffect(() => {
@@ -61,6 +64,8 @@ export default function Track() {
     setBusy(true);
     try {
       const payload: any = { mode, projectId: Number(projectId), taskTypeId, crewSize };
+      const technicianIds = crewIds.filter((id): id is number => typeof id === 'number');
+      if (technicianIds.length) payload.technicianIds = technicianIds;
       if (mode === 'device') {
         payload.systemId = systemId;
         payload.deviceId = deviceId;
@@ -170,6 +175,33 @@ export default function Track() {
             <button className="btn-outline w-12 h-12 text-xl" onClick={() => setCrewSize(crewSize + 1)}>+</button>
           </div>
         </div>
+
+        {crewSize > 1 && technicians.length > 0 && (
+          <div>
+            <label className="label">Crew members <span className="text-slate-500 font-normal">(optional)</span></label>
+            <div className="space-y-2">
+              <div className="input !py-2.5 text-slate-400">You</div>
+              {Array.from({ length: crewSize - 1 }, (_, i) => (
+                <select
+                  key={i}
+                  className="input"
+                  value={crewIds[i] ?? ''}
+                  onChange={(e) => {
+                    const next = [...crewIds];
+                    next[i] = Number(e.target.value) || '';
+                    setCrewIds(next);
+                  }}
+                >
+                  <option value="">Technician {i + 2} (skip)</option>
+                  {technicians.map((t) => (
+                    <option key={t.id} value={t.id}>{t.full_name}</option>
+                  ))}
+                </select>
+              ))}
+            </div>
+            <p className="text-xs text-slate-400 mt-1.5">Naming your crew helps the intelligence engine learn each technician's production rates.</p>
+          </div>
+        )}
       </div>
 
       <button className="btn-primary w-full py-4 text-lg" disabled={!ready || busy} onClick={start}>

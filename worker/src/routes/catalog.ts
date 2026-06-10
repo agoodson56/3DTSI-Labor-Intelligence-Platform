@@ -23,6 +23,14 @@ catalog.get('/', async (c) => {
   });
 });
 
+/** Active users for the optional crew-member picker (names only - no emails/roles). */
+catalog.get('/technicians', async (c) => {
+  const rows = await c.env.DB.prepare(
+    `SELECT id, full_name FROM users WHERE active = 1 AND email_verified = 1 ORDER BY full_name`,
+  ).all();
+  return c.json(rows.results);
+});
+
 // ---- admin management (unlimited systems and devices) ----
 catalog.post('/systems', requirePermission('catalog.manage'), async (c) => {
   const b = await c.req.json<any>();

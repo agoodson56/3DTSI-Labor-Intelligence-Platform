@@ -273,6 +273,40 @@ describe('API integration', () => {
     expect(stop.data.metrics.unitsPerHour).toBeCloseTo(1955 / 4, 0);
   });
 
+  it('lets technicians optionally name their crew members', async () => {
+    // any signed-in user can list technicians (names only)
+    const techs = await call('GET', '/api/catalog/technicians', undefined, techToken);
+    expect(techs.status).toBe(200);
+    expect(techs.data.length).toBeGreaterThanOrEqual(2);
+    expect(techs.data[0].email).toBeUndefined(); // no emails exposed
+    const admin = techs.data.find((t: any) => t.full_name === 'System Admin');
+
+    const catalog = await call('GET', '/api/catalog', undefined, techToken);
+    const cat6 = catalog.data.cableTypes.find((ct: any) => ct.name === 'Cat6');
+    const pulling = catalog.data.taskTypes.find((t: any) => t.name === 'Cable Pulling');
+
+    const start = await call(
+      'POST',
+      '/api/sessions',
+      {
+        mode: 'cable',
+        projectId,
+        cableTypeId: cat6.id,
+        taskTypeId: pulling.id,
+        crewSize: 2,
+        reels: [{ startingLength: 500 }],
+        technicianIds: [admin.id],
+      },
+      techToken,
+    );
+    expect(start.status).toBe(201);
+    const detail = await call('GET', `/api/sessions/${start.data.id}`, undefined, techToken);
+    const names = detail.data.technicians.map((t: any) => t.full_name).sort();
+    expect(names).toContain('System Admin'); // selected crew member
+    expect(names).toContain('Field Tech'); // creator auto-included
+    await call('POST', `/api/sessions/${start.data.id}/cancel`, {}, techToken);
+  });
+
   it('limits cable sessions to 30 reels', async () => {
     const catalog = await call('GET', '/api/catalog', undefined, techToken);
     const cat6 = catalog.data.cableTypes.find((ct: any) => ct.name === 'Cat6');
