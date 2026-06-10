@@ -32,9 +32,14 @@ export default function Guide() {
 
   return (
     <div className="space-y-4 max-w-3xl">
-      <div>
-        <h1 className="text-2xl font-bold">📖 User Guide</h1>
-        <p className="text-slate-400 text-sm mt-1">Everything in this app, explained the easy way. Tap any box to open it.</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold">📖 User Guide</h1>
+          <p className="text-slate-400 text-sm mt-1">Everything in this app, explained the easy way. Tap any box to open it.</p>
+        </div>
+        <a className="btn-gold px-4 py-2 text-sm no-print" href="/3DTSI-LIP-User-Guide.pdf" download>
+          ⬇ Download PDF
+        </a>
       </div>
 
       <Section icon="🤔" title="What is this app?" open>
