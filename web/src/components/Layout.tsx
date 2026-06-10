@@ -12,7 +12,8 @@ function LogoPeek({ className }: { className: string }) {
   const navigate = useNavigate();
   const clicks = useRef({ count: 0, last: 0 });
 
-  const handleClick = () => {
+  /** Counts a click toward the hidden admin door. Returns true when the door opens. */
+  const countClick = () => {
     const now = Date.now();
     clicks.current.count = now - clicks.current.last < 1500 ? clicks.current.count + 1 : 1;
     clicks.current.last = now;
@@ -20,11 +21,21 @@ function LogoPeek({ className }: { className: string }) {
       clicks.current.count = 0;
       setOpen(false);
       navigate('/admin');
-      return;
+      return true;
     }
-    setOpen((v) => !v);
+    return false;
   };
 
+  const handleClick = () => {
+    if (countClick()) return;
+    // a single tap shows the popup; rapid tapping keeps it closed so the
+    // overlay doesn't fight with the hidden-door taps
+    setOpen(clicks.current.count === 1 ? (v) => !v : false);
+  };
+
+  // Note: no onMouseLeave - the popup renders under the cursor, which would
+  // immediately fire mouseleave on the logo and strobe the popup open/closed.
+  // Hover opens it; a click anywhere closes it.
   return (
     <>
       <img
@@ -32,16 +43,20 @@ function LogoPeek({ className }: { className: string }) {
         alt="3D Labor"
         className={`${className} cursor-pointer`}
         onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
         onClick={handleClick}
       />
       {open &&
-        // portal to <body>: ancestors with backdrop-filter (app header) would
-        // otherwise trap position:fixed and pin the popup to themselves
+        // portal to #root: escapes ancestors with backdrop-filter (the app
+        // header traps position:fixed), while staying inside React's event
+        // root so the overlay's click handler actually fires
         createPortal(
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-            onClick={() => setOpen(false)}
+            onClick={() => {
+              // taps on the popup count toward the hidden door too - otherwise
+              // the popup swallows every other tap and 7-in-a-row is impossible
+              if (!countClick()) setOpen(false);
+            }}
           >
             <img
               src="/logo.png"
@@ -50,7 +65,7 @@ function LogoPeek({ className }: { className: string }) {
               className="max-w-[90vw] max-h-[90vw] rounded-3xl shadow-2xl shadow-black/60"
             />
           </div>,
-          document.body,
+          document.getElementById('root')!,
         )}
     </>
   );
