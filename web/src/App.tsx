@@ -11,6 +11,7 @@ import Intelligence from './pages/Intelligence';
 import Reports from './pages/Reports';
 import Admin from './pages/Admin';
 import Settings from './pages/Settings';
+import Guide from './pages/Guide';
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="/reports" element={<Reports />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/guide" element={<Guide />} />
         <Route path="*" element={<Navigate to="/projects" replace />} />
       </Routes>
     </Layout>

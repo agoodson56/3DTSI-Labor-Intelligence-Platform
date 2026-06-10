@@ -44,12 +44,13 @@ const NAV = [
   { to: '/intelligence', label: 'Intelligence', icon: '🧠', permission: 'intelligence.view' },
   { to: '/reports', label: 'Reports', icon: '📄', permission: 'reports.view' },
   { to: '/admin', label: 'Admin', icon: '⚙️', permission: 'users.view' },
+  { to: '/guide', label: 'Guide', icon: '📖', permission: '' }, // everyone
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {
   const { user, can, logout } = useAuth();
   const navigate = useNavigate();
-  const items = NAV.filter((n) => can(n.permission));
+  const items = NAV.filter((n) => !n.permission || can(n.permission));
 
   return (
     <div className="min-h-full flex flex-col md:flex-row">
@@ -89,9 +90,12 @@ export default function Layout({ children }: { children: ReactNode }) {
           <LogoPeek className="w-8 h-8 rounded-lg" />
           <span className="text-slate-400 font-medium text-xs uppercase tracking-widest">Labor Intelligence</span>
         </div>
-        <button onClick={() => navigate('/settings')} className="text-sm text-slate-300 font-medium">
-          {user?.fullName?.split(' ')[0]} <span className="text-gold-500">▾</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/guide')} className="text-xl" title="User Guide" aria-label="User Guide">📖</button>
+          <button onClick={() => navigate('/settings')} className="text-sm text-slate-300 font-medium">
+            {user?.fullName?.split(' ')[0]} <span className="text-gold-500">▾</span>
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 p-4 md:p-8 pb-24 md:pb-8 max-w-6xl w-full mx-auto">{children}</main>
