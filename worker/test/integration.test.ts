@@ -552,6 +552,26 @@ describe('API integration', () => {
     expect(login.data.user.role).toBe('Technician');
   });
 
+  it('activates accounts immediately when no email service is configured', async () => {
+    const savedKey = env.RESEND_API_KEY;
+    delete env.RESEND_API_KEY;
+    try {
+      // wrong domain still rejected
+      expect((await call('POST', '/api/auth/register', { email: 'x@gmail.com', password: 'GoodPassword#1', fullName: 'X' })).status).toBe(400);
+
+      const reg = await call('POST', '/api/auth/register', { email: 'instant@3dtsi.com', password: 'GoodPassword#1', fullName: 'Instant Tech' });
+      expect(reg.status).toBe(200);
+      expect(reg.data.verificationRequired).toBe(false);
+
+      // can sign in right away - no code needed
+      const login = await call('POST', '/api/auth/login', { email: 'instant@3dtsi.com', password: 'GoodPassword#1' });
+      expect(login.status).toBe(200);
+      expect(login.data.user.role).toBe('Technician');
+    } finally {
+      env.RESEND_API_KEY = savedKey;
+    }
+  });
+
   it('forgot-password resets via emailed code and revokes old sessions', async () => {
     const oldLogin = await call('POST', '/api/auth/login', { email: 'newtech@3dtsi.com', password: 'GoodPassword#1' });
     const oldToken = oldLogin.data.token;

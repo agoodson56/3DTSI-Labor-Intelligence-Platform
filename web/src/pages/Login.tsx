@@ -44,7 +44,7 @@ export default function Login() {
         case 'register': {
           const r = await post('/api/auth/register', { email, password, fullName });
           setNotice(r.message);
-          setMode('verify');
+          setMode(r.verificationRequired === false ? 'signin' : 'verify');
           break;
         }
         case 'verify': {

@@ -91,13 +91,10 @@ auth.post('/bootstrap', async (c) => {
 
 /**
  * Self-registration: 3DTSI staff only (email must end with @3dtsi.com).
- * Creates a Technician account that cannot sign in until the emailed
- * 6-digit verification code is confirmed.
+ * When outbound email is configured, a 6-digit verification code is required
+ * before the first sign-in; without it, accounts activate immediately.
  */
 auth.post('/register', async (c) => {
-  if (!emailConfigured(c.env)) {
-    return c.json({ error: 'Self-registration is not available yet - ask an administrator to create your account.' }, 503);
-  }
   const b = await c.req.json<{ email: string; password: string; fullName: string }>();
   const email = String(b.email ?? '').trim().toLowerCase();
   if (!email.endsWith(REGISTRATION_DOMAIN)) {
@@ -113,21 +110,33 @@ auth.post('/register', async (c) => {
 
   const { hash, salt } = await hashPassword(b.password);
   const role = await c.env.DB.prepare(`SELECT id FROM roles WHERE name = 'Technician'`).first<{ id: number }>();
-  const code = sixDigitCode();
-  await c.env.DB.prepare(
-    `INSERT INTO users (email, password_hash, password_salt, full_name, role_id, email_verified, verify_code, verify_expires)
-     VALUES (?, ?, ?, ?, ?, 0, ?, datetime('now', '+30 minutes'))`,
-  )
-    .bind(email, hash, salt, b.fullName.trim(), role!.id, code)
-    .run();
+  const verificationRequired = emailConfigured(c.env);
 
-  await sendEmail(
-    c.env,
-    email,
-    'Verify your 3DTSI LIP account',
-    codeEmailHtml('Verify your email', code, 'Enter this code in the app to activate your account. It expires in 30 minutes. If you did not register, ignore this email.'),
-  );
-  return c.json({ ok: true, message: `Verification code sent to ${email}. Enter it to activate your account.` });
+  if (verificationRequired) {
+    const code = sixDigitCode();
+    await c.env.DB.prepare(
+      `INSERT INTO users (email, password_hash, password_salt, full_name, role_id, email_verified, verify_code, verify_expires)
+       VALUES (?, ?, ?, ?, ?, 0, ?, datetime('now', '+30 minutes'))`,
+    )
+      .bind(email, hash, salt, b.fullName.trim(), role!.id, code)
+      .run();
+    await sendEmail(
+      c.env,
+      email,
+      'Verify your 3DTSI LIP account',
+      codeEmailHtml('Verify your email', code, 'Enter this code in the app to activate your account. It expires in 30 minutes. If you did not register, ignore this email.'),
+    );
+    return c.json({ ok: true, verificationRequired: true, message: `Verification code sent to ${email}. Enter it to activate your account.` });
+  }
+
+  // No email service configured: activate immediately (domain check only).
+  await c.env.DB.prepare(
+    `INSERT INTO users (email, password_hash, password_salt, full_name, role_id, email_verified)
+     VALUES (?, ?, ?, ?, ?, 1)`,
+  )
+    .bind(email, hash, salt, b.fullName.trim(), role!.id)
+    .run();
+  return c.json({ ok: true, verificationRequired: false, message: 'Account created - you can sign in now.' });
 });
 
 auth.post('/verify-email', async (c) => {

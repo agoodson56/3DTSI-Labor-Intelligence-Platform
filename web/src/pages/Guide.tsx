@@ -66,7 +66,7 @@ export default function Guide() {
       <Section icon="🔑" title="Make an account and sign in">
         <Step n={1}>On the sign-in screen, tap <B>Create account (3DTSI staff)</B>.</Step>
         <Step n={2}>Type your name, your <B>work email</B> (it must end with <Gold>@3dtsi.com</Gold>), and a password with at least 10 characters.</Step>
-        <Step n={3}>Check your email for a <B>6-digit code</B> and type it in. That proves the email is really yours.</Step>
+        <Step n={3}>If the app asks for a code, check your email for a <B>6-digit code</B> and type it in. That proves the email is really yours.</Step>
         <Step n={4}>Now sign in with your email and password. That's it!</Step>
         <p className="text-sm text-slate-400">
           Forgot your password? Tap <B>Forgot password?</B> on the sign-in screen and we'll email you a code to set a new one.
