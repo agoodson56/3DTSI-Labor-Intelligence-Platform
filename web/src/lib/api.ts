@@ -45,6 +45,7 @@ export const post = <T = any>(path: string, data?: unknown) =>
   api<T>(path, { method: 'POST', body: data === undefined ? undefined : JSON.stringify(data) });
 export const put = <T = any>(path: string, data?: unknown) =>
   api<T>(path, { method: 'PUT', body: JSON.stringify(data) });
+export const del = <T = any>(path: string) => api<T>(path, { method: 'DELETE' });
 
 /** Downloads a CSV report through the authenticated API. */
 export async function downloadCsv(path: string, filename: string) {

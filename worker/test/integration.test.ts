@@ -410,6 +410,29 @@ describe('API integration', () => {
     expect(list.data[0].systems_list).toBe('Fire Alarm');
   });
 
+  it('deletes projects without history and archives projects with recorded labor', async () => {
+    // technician cannot delete
+    expect((await call('DELETE', `/api/projects/${projectId}`, undefined, techToken)).status).toBe(403);
+
+    // clean project (imported earlier, no sessions) -> hard delete
+    const clean = (await call('GET', '/api/projects?q=P-2026-202', undefined, adminToken)).data[0];
+    const delClean = await call('DELETE', `/api/projects/${clean.id}`, undefined, adminToken);
+    expect(delClean.status).toBe(200);
+    expect(delClean.data.action).toBe('deleted');
+    expect((await call('GET', `/api/projects/${clean.id}`, undefined, adminToken)).status).toBe(404);
+
+    // project with completed sessions -> archived, history preserved
+    const delUsed = await call('DELETE', `/api/projects/${projectId}`, undefined, adminToken);
+    expect(delUsed.status).toBe(200);
+    expect(delUsed.data.action).toBe('archived');
+    const active = await call('GET', '/api/projects?status=active', undefined, adminToken);
+    expect(active.data.some((p: any) => p.id === projectId)).toBe(false); // hidden from field
+    const detail = await call('GET', `/api/projects/${projectId}`, undefined, adminToken);
+    expect(detail.data.status).toBe('archived'); // still exists for reporting
+    const labor = await call('GET', `/api/projects/${projectId}/labor`, undefined, adminToken);
+    expect(labor.data.completedSessions).toBe(2); // intelligence history intact
+  });
+
   it('rejects requests without a token', async () => {
     expect((await call('GET', '/api/projects')).status).toBe(401);
     expect((await call('GET', '/api/sessions')).status).toBe(401);

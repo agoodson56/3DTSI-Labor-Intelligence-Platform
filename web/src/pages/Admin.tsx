@@ -1,5 +1,5 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
-import { get, post, put } from '../lib/api';
+import { del, get, post, put } from '../lib/api';
 import { useAuth } from '../lib/auth';
 
 export default function Admin() {
@@ -381,6 +381,17 @@ function Projects() {
     }
   };
 
+  const remove = async (p: any) => {
+    if (!confirm(`Delete project ${p.project_number} · ${p.name}?\n\nIf it has recorded work it will be archived (history kept); otherwise it is permanently deleted.`)) return;
+    try {
+      const res = await del(`/api/projects/${p.id}`);
+      setMsg(res.message);
+      load();
+    } catch (err: any) {
+      setMsg(err.message);
+    }
+  };
+
   return (
     <div className="grid lg:grid-cols-2 gap-5">
       <ImportProjects onImported={load} />
@@ -426,7 +437,10 @@ function Projects() {
                   <div className="text-xs text-slate-400">{p.customer_name} · {p.market_segment} · {p.status}</div>
                   {p.systems_list && <div className="text-[11px] text-brand-300 mt-0.5">🔧 {p.systems_list}</div>}
                 </div>
-                <button className="btn-outline px-3 py-1.5 text-xs shrink-0" onClick={() => setQr({ project: p.project_number, token: p.qr_token })}>QR</button>
+                <div className="flex gap-1.5 shrink-0">
+                  <button className="btn-outline px-3 py-1.5 text-xs" onClick={() => setQr({ project: p.project_number, token: p.qr_token })}>QR</button>
+                  <button className="btn-outline px-2.5 py-1.5 text-xs !text-red-400 hover:!border-red-500" title="Delete project" onClick={() => remove(p)}>🗑</button>
+                </div>
               </div>
               {qr !== null && qr.token === p.qr_token && (
                 <div className="mt-2 p-3 bg-white rounded-xl text-center">

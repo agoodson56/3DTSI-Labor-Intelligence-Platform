@@ -259,6 +259,36 @@ projects.put('/:id', requirePermission('projects.manage'), async (c) => {
   return c.json({ ok: true });
 });
 
+/**
+ * Delete a project. Projects with no recorded work sessions are removed
+ * permanently (including QR token and system scope). Projects that already
+ * have labor history are archived instead - hidden from the field but kept
+ * for reporting and the intelligence database.
+ */
+projects.delete('/:id', requirePermission('projects.manage'), async (c) => {
+  const id = c.req.param('id');
+  const project = await c.env.DB.prepare(`SELECT id, project_number FROM projects WHERE id = ?`).bind(id).first<any>();
+  if (!project) return c.json({ error: 'Project not found' }, 404);
+
+  const usage = await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM work_sessions WHERE project_id = ?`).bind(id).first<any>();
+  if ((usage?.n ?? 0) > 0) {
+    await c.env.DB.prepare(`UPDATE projects SET status = 'archived', updated_at = datetime('now') WHERE id = ?`).bind(id).run();
+    await audit(c, 'project.archive', 'project', id, { projectNumber: project.project_number, sessions: usage.n });
+    return c.json({
+      ok: true,
+      action: 'archived',
+      message: `Project has ${usage.n} recorded work session(s), so it was archived instead of deleted - labor history is preserved and it no longer appears in the field.`,
+    });
+  }
+
+  await c.env.DB.batch([
+    c.env.DB.prepare(`DELETE FROM project_systems WHERE project_id = ?`).bind(id),
+    c.env.DB.prepare(`DELETE FROM projects WHERE id = ?`).bind(id),
+  ]);
+  await audit(c, 'project.delete', 'project', id, { projectNumber: project.project_number });
+  return c.json({ ok: true, action: 'deleted', message: 'Project deleted.' });
+});
+
 // ---- customers ----
 projects.get('/customers/list', requirePermission('projects.view'), async (c) => {
   const rows = await c.env.DB.prepare(`SELECT * FROM customers WHERE active = 1 ORDER BY name`).all();
