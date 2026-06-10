@@ -7,6 +7,9 @@ import type { AppContext } from '../types';
 const sessions = new Hono<AppContext>();
 sessions.use('*', requireAuth);
 
+/** Hard cap on cable reels per session. */
+const MAX_REELS = 30;
+
 async function loadSession(c: any, id: string) {
   return c.env.DB.prepare(`SELECT * FROM work_sessions WHERE id = ?`).bind(id).first();
 }
@@ -33,6 +36,7 @@ sessions.post('/', requirePermission('sessions.create'), async (c) => {
   if (b.mode === 'cable') {
     if (!b.cableTypeId) return c.json({ error: 'cableTypeId is required for cable mode' }, 400);
     if (!Array.isArray(b.reels) || b.reels.length === 0) return c.json({ error: 'At least one reel is required' }, 400);
+    if (b.reels.length > MAX_REELS) return c.json({ error: `A session is limited to ${MAX_REELS} reels` }, 400);
     for (const r of b.reels) {
       if (!(Number(r.startingLength) > 0)) return c.json({ error: 'Each reel needs a starting length > 0' }, 400);
     }
@@ -240,6 +244,7 @@ sessions.post('/:id/reels', async (c) => {
   const max = await c.env.DB.prepare(`SELECT COALESCE(MAX(reel_number), 0) AS n FROM cable_reels WHERE session_id = ?`)
     .bind(s.id)
     .first<any>();
+  if ((max?.n ?? 0) >= MAX_REELS) return c.json({ error: `A session is limited to ${MAX_REELS} reels` }, 400);
   const reelNumber = (max?.n ?? 0) + 1;
   await c.env.DB.prepare(`INSERT INTO cable_reels (session_id, reel_number, starting_length) VALUES (?, ?, ?)`)
     .bind(s.id, reelNumber, Number(b.startingLength))

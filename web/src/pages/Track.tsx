@@ -146,7 +146,11 @@ export default function Track() {
                   </div>
                 ))}
               </div>
-              <button className="btn-outline px-3 py-2 text-sm mt-2" onClick={() => setReels([...reels, 1000])}>+ Add reel</button>
+              {reels.length < 30 ? (
+                <button className="btn-outline px-3 py-2 text-sm mt-2" onClick={() => setReels([...reels, 1000])}>+ Add reel ({reels.length}/30)</button>
+              ) : (
+                <p className="text-xs text-gold-400 mt-2">Maximum of 30 reels per session reached.</p>
+              )}
             </div>
           </>
         )}

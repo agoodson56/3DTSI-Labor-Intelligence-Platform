@@ -273,6 +273,34 @@ describe('API integration', () => {
     expect(stop.data.metrics.unitsPerHour).toBeCloseTo(1955 / 4, 0);
   });
 
+  it('limits cable sessions to 30 reels', async () => {
+    const catalog = await call('GET', '/api/catalog', undefined, techToken);
+    const cat6 = catalog.data.cableTypes.find((ct: any) => ct.name === 'Cat6');
+    const pulling = catalog.data.taskTypes.find((t: any) => t.name === 'Cable Pulling');
+
+    // 31 reels at creation -> rejected
+    const tooMany = await call(
+      'POST',
+      '/api/sessions',
+      { mode: 'cable', projectId, cableTypeId: cat6.id, taskTypeId: pulling.id, crewSize: 2, reels: Array.from({ length: 31 }, () => ({ startingLength: 1000 })) },
+      techToken,
+    );
+    expect(tooMany.status).toBe(400);
+    expect(tooMany.data.error).toContain('30');
+
+    // exactly 30 allowed; adding a 31st mid-session -> rejected
+    const ok = await call(
+      'POST',
+      '/api/sessions',
+      { mode: 'cable', projectId, cableTypeId: cat6.id, taskTypeId: pulling.id, crewSize: 2, reels: Array.from({ length: 30 }, () => ({ startingLength: 1000 })) },
+      techToken,
+    );
+    expect(ok.status).toBe(201);
+    const extra = await call('POST', `/api/sessions/${ok.data.id}/reels`, { startingLength: 500 }, techToken);
+    expect(extra.status).toBe(400);
+    await call('POST', `/api/sessions/${ok.data.id}/cancel`, {}, techToken);
+  });
+
   it('feeds the labor intelligence engine', async () => {
     const rates = await call('GET', '/api/intelligence/rates/devices', undefined, adminToken);
     const horn = rates.data.find((r: any) => r.device === 'Horn Strobe');
