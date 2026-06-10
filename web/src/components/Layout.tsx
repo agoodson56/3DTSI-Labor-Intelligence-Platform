@@ -1,6 +1,41 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../lib/auth';
+
+/** Logo that pops a 400x400 preview centered on the page on hover (or tap on touch devices). */
+function LogoPeek({ className }: { className: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <img
+        src="/logo.png"
+        alt="3D Labor"
+        className={`${className} cursor-pointer`}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onClick={() => setOpen((v) => !v)}
+      />
+      {open &&
+        // portal to <body>: ancestors with backdrop-filter (app header) would
+        // otherwise trap position:fixed and pin the popup to themselves
+        createPortal(
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+            onClick={() => setOpen(false)}
+          >
+            <img
+              src="/logo.png"
+              alt="3D Labor"
+              style={{ width: 400, height: 400 }}
+              className="max-w-[90vw] max-h-[90vw] rounded-3xl shadow-2xl shadow-black/60"
+            />
+          </div>,
+          document.body,
+        )}
+    </>
+  );
+}
 
 const NAV = [
   { to: '/projects', label: 'Projects', icon: '📋', permission: 'projects.view' },
@@ -21,7 +56,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:flex-col w-60 shrink-0 bg-ink-800 border-r border-ink-600 p-4 gap-1 no-print">
         <div className="px-2 pb-4 border-b border-ink-600 mb-3 flex items-center gap-3">
-          <img src="/logo.png" alt="3D Labor" className="w-11 h-11 rounded-xl" />
+          <LogoPeek className="w-11 h-11 rounded-xl" />
           <div className="text-[11px] uppercase tracking-widest text-slate-400 leading-tight">Labor<br />Intelligence</div>
         </div>
         {items.map((n) => (
@@ -51,7 +86,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       {/* Mobile header */}
       <header className="md:hidden sticky top-0 z-20 bg-ink-800/95 backdrop-blur border-b border-ink-600 px-4 py-3 flex items-center justify-between no-print">
         <div className="flex items-center gap-2.5">
-          <img src="/logo.png" alt="3D Labor" className="w-8 h-8 rounded-lg" />
+          <LogoPeek className="w-8 h-8 rounded-lg" />
           <span className="text-slate-400 font-medium text-xs uppercase tracking-widest">Labor Intelligence</span>
         </div>
         <button onClick={() => navigate('/settings')} className="text-sm text-slate-300 font-medium">
