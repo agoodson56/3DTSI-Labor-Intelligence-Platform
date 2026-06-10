@@ -287,23 +287,30 @@ function ImportProjects({ onImported }: { onImported: () => void }) {
 
   return (
     <div className="card p-5 space-y-3 lg:col-span-2">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h2 className="font-bold">Import projects from Excel</h2>
-        <div className="flex gap-2">
-          <a className="btn-gold px-3 py-1.5 text-xs" href="/templates/3DTSI-Project-Form.xlsx" download>
-            ⬇ Project form (single)
-          </a>
-          <a className="btn-outline px-3 py-1.5 text-xs" href="/templates/3DTSI-Project-Import-Template.xlsx" download>
-            ⬇ Bulk template
-          </a>
+      <h2 className="font-bold">Create projects from Excel</h2>
+      {error && <div className="p-3 rounded-xl bg-red-950/60 border border-red-800 text-red-300 text-sm">{error}</div>}
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div className="rounded-xl bg-ink-700 p-4">
+          <div className="text-[11px] uppercase tracking-wider text-slate-400 mb-2">Step 1 · Download &amp; fill out</div>
+          <div className="flex flex-col gap-2">
+            <a className="btn-gold px-4 py-2.5 text-sm" href="/templates/3DTSI-Project-Form.xlsx" download>
+              ⬇ Download Project Form
+            </a>
+            <a className="btn-outline px-4 py-2 text-xs" href="/templates/3DTSI-Project-Import-Template.xlsx" download>
+              ⬇ Download Bulk Template (many projects)
+            </a>
+          </div>
+          <p className="text-xs text-slate-400 mt-2">The Project Form is what a PM fills out for one project. Fill the Answer column in Excel and save.</p>
+        </div>
+        <div className="rounded-xl bg-ink-700 p-4">
+          <div className="text-[11px] uppercase tracking-wider text-slate-400 mb-2">Step 2 · Upload the filled file</div>
+          <label className="btn-primary px-4 py-2.5 text-sm w-full cursor-pointer">
+            ⬆ Upload Project
+            <input type="file" accept=".xlsx,.xls,.csv" onChange={pickFile} className="hidden" />
+          </label>
+          <p className="text-xs text-slate-400 mt-2">Pick your saved form (or bulk file) - the format is detected automatically, then confirm the import.</p>
         </div>
       </div>
-      <p className="text-xs text-slate-400">
-        The <span className="text-gold-400">project form</span> is what a PM fills out for one project. The bulk template imports many projects at once. Upload either file below - the importer detects the format automatically.
-      </p>
-      {error && <div className="p-3 rounded-xl bg-red-950/60 border border-red-800 text-red-300 text-sm">{error}</div>}
-      <input type="file" accept=".xlsx,.xls,.csv" onChange={pickFile}
-        className="block w-full text-sm text-slate-400 file:btn-primary file:px-4 file:py-2 file:mr-3 file:border-0 file:text-sm" />
       {rows.length > 0 && (
         <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-ink-700">
           <div className="text-sm">
