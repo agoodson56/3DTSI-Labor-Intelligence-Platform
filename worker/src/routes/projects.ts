@@ -104,14 +104,16 @@ projects.post('/import', requirePermission('projects.manage'), async (c) => {
         customer = { id: ins.meta.last_row_id };
       }
 
-      // optional PM match
+      // optional PM match - accepts an email or a full name
       let pmUserId: number | null = null;
       let pmNote = '';
-      const pmEmail = String(r.pmEmail ?? '').trim().toLowerCase();
-      if (pmEmail) {
-        const pm = await c.env.DB.prepare(`SELECT id FROM users WHERE email = ?`).bind(pmEmail).first<any>();
+      const pmRaw = String(r.pmEmail ?? r.projectManager ?? '').trim();
+      if (pmRaw) {
+        const pm = pmRaw.includes('@')
+          ? await c.env.DB.prepare(`SELECT id FROM users WHERE email = ?`).bind(pmRaw.toLowerCase()).first<any>()
+          : await c.env.DB.prepare(`SELECT id FROM users WHERE full_name = ? COLLATE NOCASE`).bind(pmRaw).first<any>();
         if (pm) pmUserId = pm.id;
-        else pmNote = ` (PM email ${pmEmail} not found - left unassigned)`;
+        else pmNote = ` (PM "${pmRaw}" not found - left unassigned)`;
       }
 
       // resolve systems
@@ -130,8 +132,8 @@ projects.post('/import', requirePermission('projects.manage'), async (c) => {
       const qrToken = randomHex(16);
       const ins = await c.env.DB.prepare(
         `INSERT INTO projects (project_number, name, customer_id, site_address, market_segment, project_type,
-                               office_location, labor_budget_hours, pm_user_id, qr_token)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                               office_location, labor_budget_hours, pm_user_id, foreman_name, lead_name, qr_token)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
         .bind(
           projectNumber,
@@ -143,6 +145,8 @@ projects.post('/import', requirePermission('projects.manage'), async (c) => {
           String(r.officeLocation ?? '').trim(),
           Number(r.laborBudgetHours) || 0,
           pmUserId,
+          String(r.foreman ?? '').trim(),
+          String(r.lead ?? '').trim(),
           qrToken,
         )
         .run();

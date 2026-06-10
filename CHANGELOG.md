@@ -2,6 +2,13 @@
 
 All notable changes to the 3DTSI Labor Intelligence Platform.
 
+## [1.3.0] - 2026-06-10
+
+### Added
+- **PM project setup form**: single-project Excel form (Description/Answer layout matching the form 3DTSI PMs fill out - Project Number/Name/Customer/Address, Market Segment + Project Type dropdowns, PM/Foreman/Lead, Project System #1-5 dropdowns). Downloadable from Admin → Projects ("Project form (single)"). The importer auto-detects form-style vs bulk-table workbooks.
+- Foreman and Lead captured on projects (migration 0005); Project Manager matched by name or email.
+- Imported systems shown as chips on project cards (field project list and Admin).
+
 ## [1.2.0] - 2026-06-09
 
 ### Added

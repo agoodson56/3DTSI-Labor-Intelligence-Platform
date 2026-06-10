@@ -379,6 +379,37 @@ describe('API integration', () => {
     expect(again.data.skipped).toBe(1);
   });
 
+  it('imports a single PM project form with foreman/lead and PM matched by name', async () => {
+    const res = await call(
+      'POST',
+      '/api/projects/import',
+      {
+        rows: [
+          {
+            projectNumber: 'P-2026-301',
+            name: 'Form Import Job',
+            customer: 'Metro General Hospital',
+            siteAddress: '1 Form Way',
+            pmEmail: 'System Admin', // name, not email - matched against users.full_name
+            foreman: 'Mike Foreman',
+            lead: 'Larry Lead',
+            systems: 'Fire Alarm',
+          },
+        ],
+      },
+      adminToken,
+    );
+    expect(res.status).toBe(200);
+    expect(res.data.created).toBe(1);
+    expect(res.data.results[0].message).not.toContain('not found'); // PM matched by name
+
+    const list = await call('GET', '/api/projects?q=P-2026-301', undefined, adminToken);
+    expect(list.data[0].foreman_name).toBe('Mike Foreman');
+    expect(list.data[0].lead_name).toBe('Larry Lead');
+    expect(list.data[0].pm_name).toBe('System Admin');
+    expect(list.data[0].systems_list).toBe('Fire Alarm');
+  });
+
   it('rejects requests without a token', async () => {
     expect((await call('GET', '/api/projects')).status).toBe(401);
     expect((await call('GET', '/api/sessions')).status).toBe(401);

@@ -168,6 +168,43 @@ function Roles() {
   );
 }
 
+/**
+ * Parses a form-style workbook (the PM project form: "Description / Answer"
+ * rows like "Project Name", "Project Foreman", "Project System #1"...).
+ * Returns one import row, or null if the sheet isn't form-shaped.
+ */
+function parseProjectForm(rows: unknown[][]): Record<string, unknown> | null {
+  const kv = new Map<string, string>();
+  const systems: string[] = [];
+  for (const row of rows) {
+    const key = String(row?.[0] ?? '').trim();
+    const value = String(row?.[1] ?? '').trim();
+    if (!key) continue;
+    const norm = key.toLowerCase().replace(/[^a-z0-9#]/g, '');
+    if (norm.startsWith('projectsystem')) {
+      if (value) systems.push(value);
+    } else {
+      kv.set(norm, value);
+    }
+  }
+  if (!kv.has('projectname')) return null;
+  const v = (k: string) => kv.get(k) ?? '';
+  return {
+    projectNumber: v('projectnumber'),
+    name: v('projectname'),
+    customer: v('customer') || v('customername'),
+    siteAddress: v('projectaddress') || v('siteaddress'),
+    marketSegment: v('marketsegment'),
+    projectType: v('projecttype'),
+    officeLocation: v('officelocation') || v('office'),
+    laborBudgetHours: v('laborbudgethours'),
+    pmEmail: v('projectmanager') || v('pmemail'),
+    foreman: v('projectforeman') || v('foreman'),
+    lead: v('projectlead') || v('lead'),
+    systems: systems.join(', '),
+  };
+}
+
 /** Maps spreadsheet headers ("Project Number*", "Systems (comma-separated)") to API fields. */
 function normalizeImportRow(raw: Record<string, unknown>): Record<string, unknown> {
   const FIELDS: Record<string, string> = {
@@ -208,11 +245,23 @@ function ImportProjects({ onImported }: { onImported: () => void }) {
     try {
       const XLSX = await import('xlsx'); // loaded on demand - keeps the field app bundle small
       const wb = XLSX.read(await file.arrayBuffer());
-      const sheetName = wb.SheetNames.includes('Projects') ? 'Projects' : wb.SheetNames[0];
+      const sheetName = wb.SheetNames.includes('Projects')
+        ? 'Projects'
+        : wb.SheetNames.includes('Project Form')
+          ? 'Project Form'
+          : wb.SheetNames[0];
+
+      // Try the single-project PM form layout first, then the bulk table layout.
+      const asGrid = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[sheetName], { header: 1, defval: '' });
+      const formRow = parseProjectForm(asGrid);
+      if (formRow) {
+        setRows([formRow]);
+        return;
+      }
       const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[sheetName], { defval: '' });
       const mapped = raw.map(normalizeImportRow).filter((r) => r.projectNumber || r.name || r.customer);
       if (mapped.length === 0) {
-        setError('No project rows found. Use the template and fill the "Projects" sheet.');
+        setError('No project rows found. Use the project form or the bulk template.');
         return;
       }
       setRows(mapped);
@@ -240,10 +289,18 @@ function ImportProjects({ onImported }: { onImported: () => void }) {
     <div className="card p-5 space-y-3 lg:col-span-2">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="font-bold">Import projects from Excel</h2>
-        <a className="btn-outline px-3 py-1.5 text-xs" href="/templates/3DTSI-Project-Import-Template.xlsx" download>
-          ⬇ Download template
-        </a>
+        <div className="flex gap-2">
+          <a className="btn-gold px-3 py-1.5 text-xs" href="/templates/3DTSI-Project-Form.xlsx" download>
+            ⬇ Project form (single)
+          </a>
+          <a className="btn-outline px-3 py-1.5 text-xs" href="/templates/3DTSI-Project-Import-Template.xlsx" download>
+            ⬇ Bulk template
+          </a>
+        </div>
       </div>
+      <p className="text-xs text-slate-400">
+        The <span className="text-gold-400">project form</span> is what a PM fills out for one project. The bulk template imports many projects at once. Upload either file below - the importer detects the format automatically.
+      </p>
       {error && <div className="p-3 rounded-xl bg-red-950/60 border border-red-800 text-red-300 text-sm">{error}</div>}
       <input type="file" accept=".xlsx,.xls,.csv" onChange={pickFile}
         className="block w-full text-sm text-slate-400 file:btn-primary file:px-4 file:py-2 file:mr-3 file:border-0 file:text-sm" />
