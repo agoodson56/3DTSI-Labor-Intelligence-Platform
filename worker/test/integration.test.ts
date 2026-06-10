@@ -403,6 +403,7 @@ describe('API integration', () => {
             customer: 'Metro General Hospital',
             siteAddress: '1 Form Way',
             pmEmail: 'System Admin', // name, not email - matched against users.full_name
+            superintendent: 'Sam Super',
             foreman: 'Mike Foreman',
             lead: 'Larry Lead',
             systems: 'Fire Alarm',
@@ -416,6 +417,7 @@ describe('API integration', () => {
     expect(res.data.results[0].message).not.toContain('not found'); // PM matched by name
 
     const list = await call('GET', '/api/projects?q=P-2026-301', undefined, adminToken);
+    expect(list.data[0].superintendent_name).toBe('Sam Super');
     expect(list.data[0].foreman_name).toBe('Mike Foreman');
     expect(list.data[0].lead_name).toBe('Larry Lead');
     expect(list.data[0].pm_name).toBe('System Admin');

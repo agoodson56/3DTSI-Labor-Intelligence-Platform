@@ -199,7 +199,8 @@ function parseProjectForm(rows: unknown[][]): Record<string, unknown> | null {
     officeLocation: v('officelocation') || v('office'),
     laborBudgetHours: v('laborbudgethours'),
     pmEmail: v('projectmanager') || v('pmemail'),
-    foreman: v('projectforeman') || v('foreman'),
+    superintendent: v('projectsuperintendent') || v('superintendent'),
+    foreman: v('projectforemanlead') || v('projectforeman') || v('foreman'),
     lead: v('projectlead') || v('lead'),
     systems: systems.join(', '),
   };

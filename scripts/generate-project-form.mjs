@@ -68,13 +68,14 @@ const FIELDS = [
   { label: 'Office Location' },
   { label: 'Labor Budget Hours', note: 'Total estimated labor man-hours.' },
   { label: 'Project Manager', note: 'Name or email. Matched to a platform user when possible.' },
-  { label: 'Project Foreman' },
-  { label: 'Project Lead' },
+  { label: 'Project Superintendent' },
+  { label: 'Project Foreman / Lead' },
   { label: 'Project System #1', list: 'systems' },
   { label: 'Project System #2', list: 'systems' },
   { label: 'Project System #3', list: 'systems' },
   { label: 'Project System #4', list: 'systems' },
   { label: 'Project System #5', list: 'systems' },
+  { label: 'Project System #6', list: 'systems' },
 ];
 
 const LIST_RANGES = {
