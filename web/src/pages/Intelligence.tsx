@@ -64,6 +64,7 @@ export default function Intelligence() {
 
       {tab === 'rates' && (
         <Table
+          leftCols={2}
           headers={['System', 'Device', 'Samples', 'Actual hrs/unit', 'Estimate hrs/unit', 'Variance', 'Units/man-hr', 'Confidence']}
           rows={deviceRates.map((r) => [
             r.system,
@@ -155,20 +156,22 @@ export default function Intelligence() {
   );
 }
 
-function Table({ headers, rows, empty }: { headers: string[]; rows: any[][]; empty: string }) {
+/** Data table. The first `leftCols` columns stay left-aligned (names); the rest center under their headers. */
+function Table({ headers, rows, empty, leftCols = 1 }: { headers: string[]; rows: any[][]; empty: string; leftCols?: number }) {
   if (rows.length === 0) return <div className="card p-8 text-center text-slate-400">{empty}</div>;
+  const align = (i: number) => (i < leftCols ? 'text-left' : 'text-center');
   return (
     <div className="card overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-ink-600 text-left text-[11px] uppercase tracking-wider text-slate-400">
-            {headers.map((h) => <th key={h} className="px-4 py-3 whitespace-nowrap">{h}</th>)}
+          <tr className="border-b border-ink-600 text-[11px] uppercase tracking-wider text-slate-400">
+            {headers.map((h, i) => <th key={h} className={`px-4 py-3 whitespace-nowrap ${align(i)}`}>{h}</th>)}
           </tr>
         </thead>
         <tbody>
           {rows.map((r, i) => (
             <tr key={i} className="border-b border-ink-700 last:border-0">
-              {r.map((cell, j) => <td key={j} className="px-4 py-3 whitespace-nowrap">{cell}</td>)}
+              {r.map((cell, j) => <td key={j} className={`px-4 py-3 whitespace-nowrap ${align(j)}`}>{cell}</td>)}
             </tr>
           ))}
         </tbody>
