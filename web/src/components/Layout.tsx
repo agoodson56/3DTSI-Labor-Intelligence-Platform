@@ -1,46 +1,37 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { useRef, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { useAuth } from '../lib/auth';
 
-/** App logo. Hidden door: 7 clicks (within 2.5s of each other) opens Administration. */
-function LogoPeek({ className }: { className: string }) {
-  const navigate = useNavigate();
-  const clicks = useRef({ count: 0, last: 0 });
-
-  const handleClick = () => {
-    const now = Date.now();
-    clicks.current.count = now - clicks.current.last < 2500 ? clicks.current.count + 1 : 1;
-    clicks.current.last = now;
-    if (clicks.current.count >= 7) {
-      clicks.current.count = 0;
-      navigate('/admin');
-    }
-  };
-
-  return <img src="/logo.png" alt="3D Labor" className={`${className} cursor-pointer select-none`} onClick={handleClick} />;
+function Logo({ className }: { className: string }) {
+  return <img src="/logo.png" alt="3D Labor" className={`${className} select-none`} />;
 }
 
 const NAV = [
   { to: '/projects', label: 'Projects', icon: '📋', permission: 'projects.view' },
   { to: '/sessions', label: 'My Work', icon: '⏱️', permission: 'sessions.create' },
+  // 'admin-area' = anyone who can use at least one Administration tab
+  { to: '/admin', label: 'Admin', icon: '⚙️', permission: 'admin-area' },
   { to: '/dashboard', label: 'Dashboard', icon: '📊', permission: 'dashboard.view' },
   { to: '/intelligence', label: 'Intelligence', icon: '🧠', permission: 'intelligence.view' },
   { to: '/reports', label: 'Reports', icon: '📄', permission: 'reports.view' },
-  // Admin is intentionally NOT in the menu - 7 quick clicks on the logo open it.
   { to: '/guide', label: 'Guide', icon: '📖', permission: '' }, // everyone
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {
   const { user, can, logout } = useAuth();
   const navigate = useNavigate();
-  const items = NAV.filter((n) => !n.permission || can(n.permission));
+  const items = NAV.filter((n) =>
+    n.permission === 'admin-area'
+      ? can('users.view') || can('projects.manage') || can('catalog.manage')
+      : !n.permission || can(n.permission),
+  );
 
   return (
     <div className="min-h-full flex flex-col md:flex-row">
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:flex-col w-60 shrink-0 bg-ink-800 border-r border-ink-600 p-4 gap-1 no-print">
         <div className="px-2 pb-4 border-b border-ink-600 mb-3 flex items-center gap-3">
-          <LogoPeek className="w-11 h-11 rounded-xl" />
+          <Logo className="w-11 h-11 rounded-xl" />
           <div className="text-[11px] uppercase tracking-widest text-slate-400 leading-tight">Labor<br />Intelligence</div>
         </div>
         {items.map((n) => (
@@ -70,7 +61,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       {/* Mobile header */}
       <header className="md:hidden sticky top-0 z-20 bg-ink-800/95 backdrop-blur border-b border-ink-600 px-4 py-3 flex items-center justify-between no-print">
         <div className="flex items-center gap-2.5">
-          <LogoPeek className="w-8 h-8 rounded-lg" />
+          <Logo className="w-8 h-8 rounded-lg" />
           <span className="text-slate-400 font-medium text-xs uppercase tracking-widest">Labor Intelligence</span>
         </div>
         <div className="flex items-center gap-3">
