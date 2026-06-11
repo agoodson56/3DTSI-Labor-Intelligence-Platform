@@ -172,7 +172,7 @@ export default function Guide() {
             <li><B>Admin → Users</B>: add people, disable accounts, see who has MFA on. Self-registered staff start as Technicians — promote them here.</li>
             <li><B>Admin → Roles</B>: tick or untick what each role is allowed to do.</li>
             <li><B>Admin → Catalog</B>: add new systems and devices, and set the estimate hours per unit — that number is what crews are measured against.</li>
-            <li><B>Admin → Projects</B>: the 🗑 button deletes a project. If it already has recorded work, it's archived instead (hidden from the field, history kept).</li>
+            <li><B>Admin → Projects</B>: the 🗑 button deletes a project. If it has recorded work it's archived first (hidden from the field); delete the archived project again to erase it and its history permanently.</li>
           </ul>
         </Section>
       )}

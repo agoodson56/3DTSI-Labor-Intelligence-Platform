@@ -261,33 +261,46 @@ projects.put('/:id', requirePermission('projects.manage'), async (c) => {
 });
 
 /**
- * Delete a project. Projects with no recorded work sessions are removed
- * permanently (including QR token and system scope). Projects that already
- * have labor history are archived instead - hidden from the field but kept
- * for reporting and the intelligence database.
+ * Delete a project.
+ * - No recorded work: removed permanently right away.
+ * - Has work, still active: archived first (one click can't erase labor history).
+ * - Already archived: permanently erased along with ALL its recorded history
+ *   (sessions, events, reels, crew links, labor metrics, system scope).
  */
 projects.delete('/:id', requirePermission('projects.manage'), async (c) => {
   const id = c.req.param('id');
-  const project = await c.env.DB.prepare(`SELECT id, project_number FROM projects WHERE id = ?`).bind(id).first<any>();
+  const project = await c.env.DB.prepare(`SELECT id, project_number, status FROM projects WHERE id = ?`).bind(id).first<any>();
   if (!project) return c.json({ error: 'Project not found' }, 404);
 
   const usage = await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM work_sessions WHERE project_id = ?`).bind(id).first<any>();
-  if ((usage?.n ?? 0) > 0) {
+  const hasWork = (usage?.n ?? 0) > 0;
+
+  if (hasWork && project.status !== 'archived') {
     await c.env.DB.prepare(`UPDATE projects SET status = 'archived', updated_at = datetime('now') WHERE id = ?`).bind(id).run();
     await audit(c, 'project.archive', 'project', id, { projectNumber: project.project_number, sessions: usage.n });
     return c.json({
       ok: true,
       action: 'archived',
-      message: `Project has ${usage.n} recorded work session(s), so it was archived instead of deleted - labor history is preserved and it no longer appears in the field.`,
+      message: `Project has ${usage.n} recorded work session(s), so it was archived first - it no longer appears in the field. Delete it again to permanently erase it and its labor history.`,
     });
   }
 
+  // Permanent removal - cascade through everything that references the project.
   await c.env.DB.batch([
+    c.env.DB.prepare(`DELETE FROM labor_metrics WHERE project_id = ?`).bind(id),
+    c.env.DB.prepare(`DELETE FROM session_events WHERE session_id IN (SELECT id FROM work_sessions WHERE project_id = ?)`).bind(id),
+    c.env.DB.prepare(`DELETE FROM session_technicians WHERE session_id IN (SELECT id FROM work_sessions WHERE project_id = ?)`).bind(id),
+    c.env.DB.prepare(`DELETE FROM cable_reels WHERE session_id IN (SELECT id FROM work_sessions WHERE project_id = ?)`).bind(id),
+    c.env.DB.prepare(`DELETE FROM work_sessions WHERE project_id = ?`).bind(id),
     c.env.DB.prepare(`DELETE FROM project_systems WHERE project_id = ?`).bind(id),
     c.env.DB.prepare(`DELETE FROM projects WHERE id = ?`).bind(id),
   ]);
-  await audit(c, 'project.delete', 'project', id, { projectNumber: project.project_number });
-  return c.json({ ok: true, action: 'deleted', message: 'Project deleted.' });
+  await audit(c, 'project.delete', 'project', id, { projectNumber: project.project_number, erasedSessions: usage?.n ?? 0 });
+  return c.json({
+    ok: true,
+    action: 'deleted',
+    message: hasWork ? `Project and its ${usage.n} recorded work session(s) permanently deleted.` : 'Project deleted.',
+  });
 });
 
 // ---- customers ----

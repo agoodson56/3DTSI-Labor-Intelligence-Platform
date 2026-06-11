@@ -403,7 +403,11 @@ function Projects() {
   };
 
   const remove = async (p: any) => {
-    if (!confirm(`Delete project ${p.project_number} · ${p.name}?\n\nIf it has recorded work it will be archived (history kept); otherwise it is permanently deleted.`)) return;
+    const warning =
+      p.status === 'archived'
+        ? `PERMANENTLY delete archived project ${p.project_number} · ${p.name}?\n\nThis erases the project AND all of its recorded work sessions and labor history. This cannot be undone.`
+        : `Delete project ${p.project_number} · ${p.name}?\n\nIf it has recorded work it will be archived first (delete it again from the archive to erase it permanently); otherwise it is deleted right away.`;
+    if (!confirm(warning)) return;
     try {
       const res = await del(`/api/projects/${p.id}`);
       setMsg(res.message);

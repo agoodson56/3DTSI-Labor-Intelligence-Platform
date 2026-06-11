@@ -514,7 +514,7 @@ describe('API integration', () => {
     expect(list.data[0].systems_list).toBe('Fire Alarm');
   });
 
-  it('deletes projects without history and archives projects with recorded labor', async () => {
+  it('delete lifecycle: clean projects go instantly, working projects archive, archived projects erase fully', async () => {
     // technician cannot delete
     expect((await call('DELETE', `/api/projects/${projectId}`, undefined, techToken)).status).toBe(403);
 
@@ -525,7 +525,7 @@ describe('API integration', () => {
     expect(delClean.data.action).toBe('deleted');
     expect((await call('GET', `/api/projects/${clean.id}`, undefined, adminToken)).status).toBe(404);
 
-    // project with completed sessions -> archived, history preserved
+    // project with completed sessions -> archived first, history preserved
     const delUsed = await call('DELETE', `/api/projects/${projectId}`, undefined, adminToken);
     expect(delUsed.status).toBe(200);
     expect(delUsed.data.action).toBe('archived');
@@ -534,7 +534,21 @@ describe('API integration', () => {
     const detail = await call('GET', `/api/projects/${projectId}`, undefined, adminToken);
     expect(detail.data.status).toBe('archived'); // still exists for reporting
     const labor = await call('GET', `/api/projects/${projectId}/labor`, undefined, adminToken);
-    expect(labor.data.completedSessions).toBe(2); // intelligence history intact
+    expect(labor.data.completedSessions).toBe(2); // intelligence history intact at this stage
+
+    // deleting the archived project erases it and ALL its history
+    const purge = await call('DELETE', `/api/projects/${projectId}`, undefined, adminToken);
+    expect(purge.status).toBe(200);
+    expect(purge.data.action).toBe('deleted');
+    expect((await call('GET', `/api/projects/${projectId}`, undefined, adminToken)).status).toBe(404);
+    const orphans = env.DB._raw
+      .prepare(
+        `SELECT (SELECT COUNT(*) FROM work_sessions WHERE project_id = ?1) +
+                (SELECT COUNT(*) FROM labor_metrics WHERE project_id = ?1) +
+                (SELECT COUNT(*) FROM project_systems WHERE project_id = ?1) AS n`,
+      )
+      .get(projectId);
+    expect(orphans.n).toBe(0); // no orphaned sessions, metrics, or system links
   });
 
   it('self-registration: requires @3dtsi.com, blocks login until the emailed code verifies', async () => {
