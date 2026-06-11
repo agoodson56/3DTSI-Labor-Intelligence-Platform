@@ -1,74 +1,23 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { useRef, useState, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
+import { useRef, type ReactNode } from 'react';
 import { useAuth } from '../lib/auth';
 
-/**
- * Logo that pops a 400x400 preview on hover/tap. Hidden door: 7 quick clicks
- * (within 1.5s of each other) opens the Administration area.
- */
+/** App logo. Hidden door: 7 clicks (within 2.5s of each other) opens Administration. */
 function LogoPeek({ className }: { className: string }) {
-  const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const clicks = useRef({ count: 0, last: 0 });
 
-  /** Counts a click toward the hidden admin door. Returns true when the door opens. */
-  const countClick = () => {
+  const handleClick = () => {
     const now = Date.now();
     clicks.current.count = now - clicks.current.last < 2500 ? clicks.current.count + 1 : 1;
     clicks.current.last = now;
     if (clicks.current.count >= 7) {
       clicks.current.count = 0;
-      setOpen(false);
       navigate('/admin');
-      return true;
     }
-    return false;
   };
 
-  const handleClick = () => {
-    if (countClick()) return;
-    // a single tap shows the popup; rapid tapping keeps it closed so the
-    // overlay doesn't fight with the hidden-door taps
-    setOpen(clicks.current.count === 1 ? (v) => !v : false);
-  };
-
-  // Note: no onMouseLeave - the popup renders under the cursor, which would
-  // immediately fire mouseleave on the logo and strobe the popup open/closed.
-  // Hover opens it; a click anywhere closes it.
-  return (
-    <>
-      <img
-        src="/logo.png"
-        alt="3D Labor"
-        className={`${className} cursor-pointer`}
-        onMouseEnter={() => setOpen(true)}
-        onClick={handleClick}
-      />
-      {open &&
-        // portal to #root: escapes ancestors with backdrop-filter (the app
-        // header traps position:fixed), while staying inside React's event
-        // root so the overlay's click handler actually fires
-        createPortal(
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-            onClick={() => {
-              // taps on the popup count toward the hidden door too - otherwise
-              // the popup swallows every other tap and 7-in-a-row is impossible
-              if (!countClick()) setOpen(false);
-            }}
-          >
-            <img
-              src="/logo.png"
-              alt="3D Labor"
-              style={{ width: 400, height: 400 }}
-              className="max-w-[90vw] max-h-[90vw] rounded-3xl shadow-2xl shadow-black/60"
-            />
-          </div>,
-          document.getElementById('root')!,
-        )}
-    </>
-  );
+  return <img src="/logo.png" alt="3D Labor" className={`${className} cursor-pointer select-none`} onClick={handleClick} />;
 }
 
 const NAV = [
