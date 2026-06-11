@@ -103,6 +103,8 @@ export default function Settings() {
         </div>
       </div>
 
+      <div className="text-center text-xs text-slate-600">App version: {__BUILD_STAMP__}</div>
+
       <div className="card p-5">
         <h2 className="font-bold mb-3">Login history</h2>
         <div className="space-y-2 text-sm max-h-72 overflow-y-auto">

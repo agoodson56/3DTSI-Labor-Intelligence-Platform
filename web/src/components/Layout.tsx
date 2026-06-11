@@ -15,7 +15,7 @@ function LogoPeek({ className }: { className: string }) {
   /** Counts a click toward the hidden admin door. Returns true when the door opens. */
   const countClick = () => {
     const now = Date.now();
-    clicks.current.count = now - clicks.current.last < 1500 ? clicks.current.count + 1 : 1;
+    clicks.current.count = now - clicks.current.last < 2500 ? clicks.current.count + 1 : 1;
     clicks.current.last = now;
     if (clicks.current.count >= 7) {
       clicks.current.count = 0;
