@@ -514,6 +514,49 @@ describe('API integration', () => {
     expect(list.data[0].systems_list).toBe('Fire Alarm');
   });
 
+  it('marking a project complete blocks new work until reactivated', async () => {
+    // create a fresh project to freeze
+    const cust = (await call('GET', '/api/projects/customers/list', undefined, adminToken)).data[0];
+    const proj = await call('POST', '/api/projects', { projectNumber: 'P-2026-900', name: 'Freeze Me', customerId: cust.id }, adminToken);
+    const pid = proj.data.id;
+
+    // technician cannot change status
+    expect((await call('POST', `/api/projects/${pid}/status`, { status: 'complete' }, techToken)).status).toBe(403);
+    // invalid status rejected
+    expect((await call('POST', `/api/projects/${pid}/status`, { status: 'archived' }, adminToken)).status).toBe(400);
+
+    // mark complete
+    const done = await call('POST', `/api/projects/${pid}/status`, { status: 'complete' }, adminToken);
+    expect(done.status).toBe(200);
+
+    // hidden from the field list
+    const active = await call('GET', '/api/projects?status=active', undefined, techToken);
+    expect(active.data.some((p: any) => p.id === pid)).toBe(false);
+
+    // no new work sessions can start on it
+    const catalog = await call('GET', '/api/catalog', undefined, techToken);
+    const sys = catalog.data.systems.find((s: any) => s.devices.length > 0);
+    const blocked = await call(
+      'POST',
+      '/api/sessions',
+      { mode: 'device', projectId: pid, systemId: sys.id, deviceId: sys.devices[0].id, taskTypeId: catalog.data.taskTypes[0].id, crewSize: 1 },
+      techToken,
+    );
+    expect(blocked.status).toBe(400);
+    expect(blocked.data.error).toContain('complete');
+
+    // reactivate -> work allowed again
+    expect((await call('POST', `/api/projects/${pid}/status`, { status: 'active' }, adminToken)).status).toBe(200);
+    const ok = await call(
+      'POST',
+      '/api/sessions',
+      { mode: 'device', projectId: pid, systemId: sys.id, deviceId: sys.devices[0].id, taskTypeId: catalog.data.taskTypes[0].id, crewSize: 1 },
+      techToken,
+    );
+    expect(ok.status).toBe(201);
+    await call('POST', `/api/sessions/${ok.data.id}/cancel`, {}, techToken);
+  });
+
   it('delete lifecycle: clean projects go instantly, working projects archive, archived projects erase fully', async () => {
     // technician cannot delete
     expect((await call('DELETE', `/api/projects/${projectId}`, undefined, techToken)).status).toBe(403);

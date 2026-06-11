@@ -44,7 +44,9 @@ sessions.post('/', requirePermission('sessions.create'), async (c) => {
 
   const project = await c.env.DB.prepare(`SELECT id, status FROM projects WHERE id = ?`).bind(b.projectId).first<any>();
   if (!project) return c.json({ error: 'Project not found' }, 404);
-  if (project.status !== 'active') return c.json({ error: 'Project is not active' }, 400);
+  if (project.status !== 'active') {
+    return c.json({ error: `This project is ${project.status} - no new work can be recorded on it.` }, 400);
+  }
 
   const result = await c.env.DB.prepare(
     `INSERT INTO work_sessions (mode, project_id, system_id, device_id, cable_type_id, task_type_id, crew_size, created_by, status, notes)

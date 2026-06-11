@@ -261,6 +261,32 @@ projects.put('/:id', requirePermission('projects.manage'), async (c) => {
 });
 
 /**
+ * Change project status. Marking a project 'complete' freezes it: it leaves
+ * the field project list and no new work sessions can be started on it.
+ */
+projects.post('/:id/status', requirePermission('projects.manage'), async (c) => {
+  const id = c.req.param('id');
+  const { status } = await c.req.json<{ status: string }>();
+  const ALLOWED = ['active', 'complete', 'on_hold'];
+  if (!ALLOWED.includes(status)) return c.json({ error: `status must be one of: ${ALLOWED.join(', ')}` }, 400);
+
+  const project = await c.env.DB.prepare(`SELECT id, project_number, status FROM projects WHERE id = ?`).bind(id).first<any>();
+  if (!project) return c.json({ error: 'Project not found' }, 404);
+  if (project.status === 'archived') return c.json({ error: 'Archived projects cannot change status' }, 400);
+
+  await c.env.DB.prepare(`UPDATE projects SET status = ?, updated_at = datetime('now') WHERE id = ?`).bind(status, id).run();
+  await audit(c, 'project.status', 'project', id, { projectNumber: project.project_number, from: project.status, to: status });
+  return c.json({
+    ok: true,
+    status,
+    message:
+      status === 'complete'
+        ? 'Project marked complete - it no longer appears in the field and no new work can be recorded on it.'
+        : `Project is now ${status}.`,
+  });
+});
+
+/**
  * Delete a project.
  * - No recorded work: removed permanently right away.
  * - Has work, still active: archived first (one click can't erase labor history).

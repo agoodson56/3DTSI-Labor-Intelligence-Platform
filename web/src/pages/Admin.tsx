@@ -402,6 +402,17 @@ function Projects() {
     }
   };
 
+  const setStatus = async (p: any, status: string) => {
+    if (status === 'complete' && !confirm(`Mark ${p.project_number} · ${p.name} as COMPLETE?\n\nIt will disappear from technicians' project lists and no new work can be recorded on it. (You can reactivate it later.)`)) return;
+    try {
+      const res = await post(`/api/projects/${p.id}/status`, { status });
+      setMsg(res.message);
+      load();
+    } catch (err: any) {
+      setMsg(err.message);
+    }
+  };
+
   const remove = async (p: any) => {
     const warning =
       p.status === 'archived'
@@ -464,6 +475,12 @@ function Projects() {
                 </div>
                 <div className="flex gap-1.5 shrink-0">
                   <button className="btn-outline px-3 py-1.5 text-xs" onClick={() => setQr({ project: p.project_number, token: p.qr_token })}>QR</button>
+                  {p.status === 'active' && (
+                    <button className="btn-outline px-2.5 py-1.5 text-xs !text-brand-400 hover:!border-brand-500" title="Mark complete - no more work can be added" onClick={() => setStatus(p, 'complete')}>✔</button>
+                  )}
+                  {p.status === 'complete' && (
+                    <button className="btn-outline px-2.5 py-1.5 text-xs !text-gold-400 hover:!border-gold-500" title="Reactivate project" onClick={() => setStatus(p, 'active')}>↩</button>
+                  )}
                   <button className="btn-outline px-2.5 py-1.5 text-xs !text-red-400 hover:!border-red-500" title="Delete project" onClick={() => remove(p)}>🗑</button>
                 </div>
               </div>
